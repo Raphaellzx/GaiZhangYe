@@ -1,0 +1,63 @@
+# ==================== Python通用忽略 ====================
+# 字节码文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境（uv自动创建）
+.venv/
+venv/
+env/
+ENV/
+
+# 分发/打包文件
+*.egg-info/
+dist/
+build/
+# 项目自定义打包目录
+dist_temp/
+dist_release/
+build_tools/__pycache__/
+
+# 测试/覆盖率报告
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+.ruff_cache/
+
+# ==================== 项目专属忽略 ====================
+# 环境变量（自定义配置，不上Git）
+.env
+
+# 日志目录
+logs/
+
+# 业务数据目录（用户文件，不上Git）
+business_data/
+
+# PyInstaller打包临时文件
+*.spec  # 除build_tools/build.spec外，自动生成的spec忽略
+GaiZhangYe.spec
+
+# Windows系统文件
+Thumbs.db
+Desktop.ini
+*.tmp
+*.bak
+
+# IDE/编辑器配置（根据自己使用的工具添加）
+# VSCode
+.vscode/
+# PyCharm
+.idea/
+*.iml
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# ==================== 其他临时文件 ====================
+# 缓存文件
+*.swp
+*.swo
+.DS_Store  # Mac系统
