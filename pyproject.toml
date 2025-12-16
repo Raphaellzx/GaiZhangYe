@@ -8,7 +8,6 @@ dependencies = [
   "pywin32>=306",          # Word处理
   "pymupdf>=1.24.0",       # PDF处理
   "pillow>=10.2.0",        # 图片处理
-  "tkinter>=8.6",          # UI（Python内置，仅声明）
   "pydantic-settings>=2.0",# 配置加载
   "python-dotenv>=1.0",    # 环境变量
 ]
@@ -19,9 +18,6 @@ dev = [
   "ruff>=0.1.0",           # 代码规范
   "uv>=0.1.0",             # 包管理
 ]
-
-[tool.uv]
-virtualenv = { path = ".venv" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
