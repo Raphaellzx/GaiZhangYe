@@ -1,0 +1,28 @@
+[project]
+name = "GaiZhangYe"
+version = "0.1.0"
+description = "盖章页处理工具：准备盖章页、盖章页覆盖、批量Word转PDF"
+authors = ["Your Name <your@email.com>"]
+requires-python = ">=3.10.19"
+dependencies = [
+  "pywin32>=306",          # Word处理
+  "pymupdf>=1.24.0",       # PDF处理
+  "pillow>=10.2.0",        # 图片处理
+  "tkinter>=8.6",          # UI（Python内置，仅声明）
+  "pydantic-settings>=2.0",# 配置加载
+  "python-dotenv>=1.0",    # 环境变量
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",           # 测试
+  "ruff>=0.1.0",           # 代码规范
+  "uv>=0.1.0",             # 包管理
+]
+
+[tool.uv]
+virtualenv = { path = ".venv" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
