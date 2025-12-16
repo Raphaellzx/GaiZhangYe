@@ -2,7 +2,6 @@
 from pathlib import Path
 from typing import Dict, Optional
 from GaiZhangYe.utils.logger import get_logger
-from GaiZhangYe.core.models.config import BusinessDirConfig
 from GaiZhangYe.core.models.exceptions import DirCreateError
 
 logger = get_logger(__name__)

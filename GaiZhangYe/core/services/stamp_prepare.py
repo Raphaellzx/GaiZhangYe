@@ -1,5 +1,6 @@
 # GaiZhangYe/core/services/stamp_prepare.py
 from pathlib import Path
+from typing import Optional, List
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.file_manager import FileManager
 from GaiZhangYe.core.word_processor import WordProcessor
