@@ -70,40 +70,44 @@ class WordProcessor:
             selection = self._word_app.Selection
 
             # 根据image_location参数定位插入位置
-            if image_location == 'last_page' or not image_location:
-                # 定位到最后一页
-                selection.EndKey(Unit=6)  # wdStory=6，文档末尾
+            if image_location in ['last_page', 'last'] or not image_location:
+                # 定位到最后一页（物理页面末尾）
+                # 2=wdStatisticPages - 计算文档总页数
+                target_page = self._word_app.ActiveDocument.ComputeStatistics(2)
+                # wdGoToPage=1，wdGoToAbsolute=1
+                selection.GoTo(What=1, Which=1, Count=target_page)
+
             elif image_location.isdigit():
                 # 定位到指定页码
                 page_num = int(image_location)
                 # 转到指定页
-                self._word_app.Selection.GoTo(What=1, Which=1, Count=page_num)  # What=1=wdGoToPage, Which=1=wdGoToAbsolute
+                self._word_app.Selection.GoTo(
+                    What=1,  # 1=wdGoToPage
+                    Which=1,  # 1=wdGoToAbsolute
+                    Count=page_num
+                )
+
             elif image_location.startswith('specific_page:'):
                 # 解析格式 'specific_page:<页码>'
                 page_num = int(image_location.split(':')[1])
                 # 转到指定页
-                self._word_app.Selection.GoTo(What=1, Which=1, Count=page_num)  # What=1=wdGoToPage, Which=1=wdGoToAbsolute
+                self._word_app.Selection.GoTo(
+                    What=1,  # 1=wdGoToPage
+                    Which=1,  # 1=wdGoToAbsolute
+                    Count=page_num
+                )
 
             # 在当前位置插入图片
             shape = selection.InlineShapes.AddPicture(str(image_path)).ConvertToShape()
 
-            # 设置图片环绕方式为浮于文字上方
-            shape.WrapFormat.Type = 3  # wdWrapFront=3，浮于文字上方
-
-            shape.RelativeHorizontalPosition = 1  # 相对于页面
+            # 设置图片格式
+            shape.WrapFormat.Type = 3
+            shape.RelativeHorizontalPosition = 1
             shape.RelativeVerticalPosition = 1
-
-            # 获取页面尺寸
             current_section = doc.ActiveWindow.Selection.Sections(1)
-            page_width = current_section.PageSetup.PageWidth
-            page_height = current_section.PageSetup.PageHeight
-
-            # 设置图片大小覆盖整个页面
-            shape.Width = page_width
-            shape.Height = page_height
-
-            # 居中
-            shape.Left = -999995  
+            shape.Width = current_section.PageSetup.PageWidth
+            shape.Height = current_section.PageSetup.PageHeight
+            shape.Left = -999995
             shape.Top = -999995
 
             doc.SaveAs(str(output_path))

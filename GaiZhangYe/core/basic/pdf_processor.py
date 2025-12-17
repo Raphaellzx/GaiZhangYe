@@ -74,7 +74,7 @@ class PdfProcessor:
                         image_ext = base_image["ext"]
 
                         # 生成图片文件名
-                        image_file = output_dir / f"{pdf_path.stem}_page{page_num + 1}_{img_index + 1}.{image_ext}"
+                        image_file = output_dir / f"{pdf_path.stem}_{page_num + 1}.{image_ext}"
 
                         # 保存图片
                         with open(image_file, "wb") as f:

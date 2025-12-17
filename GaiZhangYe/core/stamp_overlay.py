@@ -2,6 +2,7 @@
 """
 功能2：盖章页覆盖服务
 """
+import re
 from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
@@ -13,6 +14,15 @@ from GaiZhangYe.core.basic.image_processor import ImageProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError, ImageProcessError
 
 logger = get_logger(__name__)
+
+
+def windows_natural_sort_key(filename):
+    """与FuGai.py相同的自然排序实现"""
+    import re
+
+    s = filename.name
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(r'(\d+)', s)]
 
 
 class StampOverlayService:
@@ -57,9 +67,9 @@ class StampOverlayService:
             # 3. 获取并处理目标Word文件
             word_files = self._get_target_word_files(target_word_dir)
 
-            # 4. 排序文件
-            sorted_images = sorted(image_files, key=lambda x: x.name)
-            sorted_word_files = sorted(word_files, key=lambda x: x.name)
+            # 应用自然排序
+            sorted_images = sorted(image_files, key=windows_natural_sort_key)
+            sorted_word_files = sorted(word_files, key=windows_natural_sort_key)
 
             # 5. 批量插入图片并转换为PDF
             result_word_files = self._batch_insert_images_and_convert(
@@ -94,30 +104,106 @@ class StampOverlayService:
     def _batch_insert_images_and_convert(self, sorted_images: List[Path], sorted_word_files: List[Path],
                                          images_dir: Path, result_word_dir: Path, result_pdf_dir: Path,
                                          image_width: int, configs: list) -> List[Path]:
-        """批量插入图片并将结果转换为PDF"""
+        """批量插入图片并将结果转换为PDF
+        核心逻辑：
+        1. 将图片按顺序分配给Word文件
+        2. 支持一个Word文件对应多张图片
+        3. 使用UI层生成的配置控制图片插入位置
+        示例：
+        images_list = [img1, img2, img3, img4, img5]
+        文件1需1张 → [img1]
+        文件2需2张 → [img2, img3]
+        文件3需2张 → [img4, img5]
+        """
         result_word_files = []
+        # 图片索引指针，用于按顺序分配图片
+        image_index = 0
+        total_images = len(sorted_images)
 
-        for word in sorted_word_files:
+        for i, word in enumerate(sorted_word_files):
             output_word = result_word_dir / f"{word.stem}.docx"
 
             # 检查是否有配置信息（UI层会传递此配置）
             current_config = self._get_current_config(word.name, configs)
+            processed_successfully = False
 
-            # 尝试使用配置模式处理
             if current_config:
-                success = self._process_with_config(current_config, word, output_word, images_dir, image_width)
-                if success:
-                    result_word_files.append(output_word)
+                logger.info(f"[UI配置模式] 处理 Word 文件 {word.name}")
 
-            # 如果配置模式处理失败或无配置，使用默认模式
-            if not current_config or output_word not in result_word_files:
-                success = self._process_with_default_mode(sorted_images, word, output_word, images_dir, image_width)
-                if success:
-                    result_word_files.append(output_word)
+                try:
+                    # 分配图片：将UI配置中实际存在的图片路径更新为实际的完整路径
+                    actual_image_paths = []
+                    for img_path_str in current_config.image_files:
+                        img_path = Path(img_path_str)
+                        # 支持两种格式：完整路径或仅文件名
+                        if img_path.exists():
+                            actual_image_path = img_path
+                        else:
+                            actual_image_path = images_dir / img_path_str
+                            if not actual_image_path.exists():
+                                logger.warning(f"配置中指定的图片不存在：{img_path_str}")
+                                continue
+                        actual_image_paths.append(str(actual_image_path))
 
-            # 将结果Word转换为PDF
-            if output_word.exists():
-                self._convert_word_to_pdf(output_word, result_pdf_dir)
+                    # 更新当前配置的图片路径为实际完整路径
+                    # 注：这里假设current_config是可变的或可以修改的
+                    if hasattr(current_config, '__dict__'):
+                        current_config.__dict__['image_files'] = actual_image_paths
+
+                    # 使用配置模式处理
+                    success = self._process_with_config(current_config, word, output_word, images_dir, image_width)
+                    if success:
+                        result_word_files.append(output_word)
+                        processed_successfully = True
+
+                        # 将结果Word转换为PDF
+                        if output_word.exists():
+                            self._convert_word_to_pdf(output_word, result_pdf_dir)
+
+                        logger.info(f"[UI配置模式] 成功处理 Word 文件 {word.name}，插入图片 {len(actual_image_paths)} 张")
+                except Exception as e:
+                    logger.error(f"[UI配置模式] 处理失败 Word 文件 {word.name}：{str(e)}")
+
+            # 如果配置模式处理失败或无配置，使用默认模式：1张图片/文件
+            if not processed_successfully and image_index < total_images:
+                logger.info(f"[默认模式] 处理 Word 文件 {word.name}")
+
+                try:
+                    # 使用配置模式处理单张图片的默认情况
+                    import shutil
+                    import os
+
+                    temp_config = type('TempConfig', (), {
+                        'filename': word.name,
+                        'image_files': [str(sorted_images[image_index])],
+                        'insert_positions': ['last_page']  # 默认插入到最后一页
+                    })()
+
+                    # 创建临时文件并处理
+                    temp_output = output_word.parent / f"{word.stem}_temp.docx"
+                    shutil.copy2(word, temp_output)
+
+                    # 插入单张图片
+                    success = self._process_with_config(temp_config, word, output_word, images_dir, image_width)
+
+                    if success:
+                        result_word_files.append(output_word)
+                        image_index += 1
+
+                        # 将结果Word转换为PDF
+                        if output_word.exists():
+                            self._convert_word_to_pdf(output_word, result_pdf_dir)
+
+                        logger.info(f"[默认模式] 成功处理 Word 文件 {word.name}，插入图片 1 张")
+                        processed_successfully = True
+                except Exception as e:
+                    logger.error(f"[默认模式] 处理失败 Word 文件 {word.name}：{str(e)}")
+
+            if not processed_successfully:
+                if current_config:
+                    logger.warning(f"已无足够图片或配置错误，无法处理 Word 文件 {word.name}")
+                else:
+                    logger.warning(f"已无足够图片，无法处理 Word 文件 {word.name}")
 
         return result_word_files
 
@@ -189,16 +275,24 @@ class StampOverlayService:
         return True
 
     def _process_with_default_mode(self, sorted_images: List[Path], word: Path, output_word: Path,
-                                  images_dir: Path, image_width: int) -> bool:
+                                  images_dir: Path, image_width: int, used_images: set) -> bool:
         """使用默认模式（文件名匹配）处理Word文件"""
         logger.info(f"[默认模式] 使用文件名匹配方式处理 Word 文件 {word.name}")
 
         # 查找对应的图片
         img_for_word = None
         for img in sorted_images:
-            if img.stem == word.stem:
+            if img.stem == word.stem and str(img) not in used_images:
                 img_for_word = img
                 break
+
+        # 如果没有找到严格匹配的图片，尝试按顺序分配
+        if not img_for_word:
+            logger.info(f"[默认模式] 未找到严格匹配的图片，尝试按顺序分配")
+            for img in sorted_images:
+                if str(img) not in used_images:
+                    img_for_word = img
+                    break
 
         if not img_for_word:
             logger.warning(f"未找到与Word文件 {word.name} 匹配的图片")
