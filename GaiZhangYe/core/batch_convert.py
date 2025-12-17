@@ -5,8 +5,8 @@
 from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
-from GaiZhangYe.core.file_processor import FileProcessor
-from GaiZhangYe.core.word_processor import WordProcessor
+from GaiZhangYe.core.basic.file_processor import FileProcessor
+from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError
 
 logger = get_logger(__name__)

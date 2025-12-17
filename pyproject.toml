@@ -9,7 +9,8 @@ dependencies = [
   "pymupdf>=1.24.0",       # PDF处理
   "pillow>=10.2.0",        # 图片处理
   "pydantic-settings>=2.0",# 配置加载
-  "python-dotenv>=1.0",    # 环境变量
+  "python-dotenv>=1.0",
+  "wxpython>=4.2.4",
 ]
 
 [project.optional-dependencies]
@@ -22,3 +23,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[[tool.uv.index]]
+name = "tuna"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple/"

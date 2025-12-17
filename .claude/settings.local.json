@@ -5,7 +5,28 @@
       "Bash(python -m uv run:*)",
       "Bash(pip install:*)",
       "Bash(python:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Bash(exit:*)",
+      "Bash(rename:*)",
+      "Bash(python3 -c \"\nimport sys\nsys.path.insert(0, ''.'')\n\nfrom GaiZhangYe.ui.stamp_prepare_panel import FileExtractConfig, StampPreparePanel\nfrom GaiZhangYe.ui.stamp_overlay_panel import ImageOverlayConfig, StampOverlayPanel\nfrom GaiZhangYe.ui.batch_convert_panel import BatchConvertPanel\n\nprint(''Successfully imported all panels'')\nprint(''Refactoring completed!'')\n\")",
+      "Bash(tree:*)",
+      "Bash(__NEW_LINE__ echo -e \"\\n========================\\n\")",
+      "Bash(__NEW_LINE__ cat GaiZhangYe/core/services/stamp_overlay.py)",
+      "Bash(__NEW_LINE__ cat GaiZhangYe/core/services/batch_convert.py)",
+      "Bash(grep:*)",
+      "Bash(__NEW_LINE__ echo -e \"\\nLooking for extract_images in pdf_processor:\")",
+      "Bash(__NEW_LINE__ python3 -c \"\nimport os\nfrom pathlib import Path\n\n# 模拟函数调用\nprint(''检查当前目录结构:'')\nfor root, dirs, files in os.walk(''d:\\Coding\\Python\\GaiZhangYe''):\n    level = root.replace(''d:\\Coding\\Python\\GaiZhangYe'', '''').count(os.sep)\n    indent = '' '' * 2 * level\n    print(f''{indent}{os.path.basename(root)}/'')\n    subindent = '' '' * 2 * (level + 1)\n    for file in files:\n        if file.endswith((''.docx'', ''.doc'')) or file.endswith((''.png'', ''.jpg'', ''.jpeg'')):\n            print(f''{subindent}{file}'')\n\")",
+      "Bash(__NEW_LINE__ cd \"d:\\Coding\\Python\\GaiZhangYe\")",
+      "Bash(__NEW_LINE__ grep -n \"^    def run\" d:CodingPythonGaiZhangYeGaiZhangYecoreservicesstamp_overlay.py)",
+      "Bash(__NEW_LINE__ echo -e \"\\n2. **stamp_overlay.py 改进**：\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n2. **stamp_overlay.py**：\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n2. **不再清理nostamped_pdf_dir目录**：\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n3. **目录结构**：\")",
+      "Bash(git add:*)",
+      "Bash(dir:*)",
+      "Bash(tree /f GaiZhangYe)"
     ]
   }
 }

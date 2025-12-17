@@ -10,7 +10,7 @@ class FileManager:
     """业务目录管理器：创建/管理business_data下的所有目录"""
     def __init__(self, root_dir: Optional[Path] = None):
         # 业务根目录默认：项目根/business_data
-        self.root_dir = root_dir or Path(__file__).parent.parent.parent.parent / "business_data"
+        self.root_dir = root_dir or Path(__file__).parent.parent.parent / "business_data"
         self.func1_dirs: Dict[str, Path] = {}  # 功能1目录映射
         self.func2_dirs: Dict[str, Path] = {}  # 功能2目录映射
         self._init_all_dirs()
@@ -23,7 +23,8 @@ class FileManager:
             self.func1_dirs = {
                 "nostamped_word": func1_root / "Nostamped_Word",
                 "nostamped_pdf": func1_root / "Nostamped_PDF",
-                "stamped_pages": func1_root / "Stamped_Pages"
+                "stamped_pages": func1_root / "Stamped_Pages",
+                "temp": func1_root / "Temp"
             }
             # 功能2目录：Images/TargetFiles/Result_Word/Result_PDF
             func2_root = self.root_dir / "func2"
@@ -43,7 +44,7 @@ class FileManager:
             raise DirCreateError(f"创建业务目录失败：{str(e)}") from e
 
     def get_func1_dir(self, dir_type: str) -> Path:
-        """获取功能1指定目录（dir_type: nostamped_word/nostamped_pdf/stamped_pages）"""
+        """获取功能1指定目录（dir_type: nostamped_word/nostamped_pdf/stamped_pages/temp）"""
         if dir_type not in self.func1_dirs:
             raise ValueError(f"功能1无此目录类型：{dir_type}")
         return self.func1_dirs[dir_type]
