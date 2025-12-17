@@ -11,6 +11,7 @@ dependencies = [
   "pydantic-settings>=2.0",# 配置加载
   "python-dotenv>=1.0",
   "wxpython>=4.2.4",
+  "flask>=3.1.2",
 ]
 
 [project.optional-dependencies]

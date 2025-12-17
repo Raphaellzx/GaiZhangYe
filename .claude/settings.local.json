@@ -29,7 +29,20 @@
       "Bash(tree /f GaiZhangYe)",
       "Bash(find:*)",
       "Bash(taskkill:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(__NEW_LINE__ find GaiZhangYe/web/templates -name \"*.html\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n检查路由配置：\")",
+      "Bash(__NEW_LINE__ grep -A 3 -B 1 \"page/\" GaiZhangYe/web/app.py)",
+      "Bash(__NEW_LINE__ ls -la GaiZhangYe/web/templates/pages/)",
+      "Bash(__NEW_LINE__ grep -A 4 \"page/\" GaiZhangYe/web/app.py)",
+      "Bash(__NEW_LINE__ grep -A 4 \"template_folder\" GaiZhangYe/web/app.py)",
+      "Bash(__NEW_LINE__ python -c \"\nimport sys\nimport os\n\n# 获取项目根目录\nproject_root = os.path.dirname(os.path.dirname(os.path.abspath(''GaiZhangYe/entrypoints/start_web.py'')))\nsys.path.insert(0, project_root)\n\nfrom GaiZhangYe.web.app import app\n\n# 测试路由是否存在\nwith app.test_client() as client:\n    print(''Testing home page:'')\n    response = client.get(''/'')\n    print(f''Status: {response.status}'')\n    \n    print(''\\nTesting prepare-stamp page:'')\n    response = client.get(''/page/prepare-stamp'')\n    print(f''Status: {response.status}'')\n    \n    print(''\\nTesting stamp-overlay page:'')\n    response = client.get(''/page/stamp-overlay'')\n    print(f''Status: {response.status}'')\n    \n    print(''\\nTesting word-to-pdf page:'')\n    response = client.get(''/page/word-to-pdf'')\n    print(f''Status: {response.status}'')\n\")",
+      "Bash(__NEW_LINE__ cat GaiZhangYe/web/app.py)",
+      "Bash(__NEW_LINE__ echo \"修改前：\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n修改后将显式指定模板目录的绝对路径。\")",
+      "Bash(__NEW_LINE__ python -c \"\nimport sys\nimport os\n\n# 获取项目根目录\nproject_root = os.path.dirname(os.path.dirname(os.path.abspath(''GaiZhangYe/entrypoints/start_web.py'')))\nsys.path.insert(0, project_root)\n\nfrom GaiZhangYe.web.app import app\n\nprint(''Template folder:'', app.template_folder)\nprint(''Static folder:'', app.static_folder)\n\n# 测试路由是否存在\nwith app.test_client() as client:\n    print(''\\nTesting all routes:'')\n    routes = [''/'', ''/page/prepare-stamp'', ''/page/stamp-overlay'', ''/page/word-to-pdf'']\n    for route in routes:\n        response = client.get(route)\n        print(f''{route}: {response.status}'')\n\")"
     ]
   }
 }
