@@ -78,7 +78,18 @@
       "Bash(taskkill.exe:*)",
       "Bash(cmd.exe:*)",
       "Bash(netstat:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(uv remove:*)",
+      "Bash(uv lock)",
+      "Bash(uv install:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv pip install:*)",
+      "Bash(pyinstaller web_build.spec)",
+      "Bash(py -m pip install:*)",
+      "Bash(py -m pyinstaller:*)",
+      "Bash(python3.10:*)",
+      "Bash(pyinstaller:*)",
+      "Bash(timeout 5 python -m GaiZhangYe.core.entrypoints.start_service:*)"
     ]
   }
 }

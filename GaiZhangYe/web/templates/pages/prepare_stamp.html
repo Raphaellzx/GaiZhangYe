@@ -97,11 +97,18 @@
             padding: 20px;
             background-color: #f8f9fa;
             border-radius: 4px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
         }
 
-        .file-name {
+        .file-name-column {
+            flex: 1;
             font-weight: bold;
-            margin-bottom: 10px;
+        }
+
+        .page-input-column {
+            flex: 1;
         }
 
         .page-range {
@@ -180,11 +187,10 @@
                     <form id="prepareForm">
                         {% for file in word_files %}
                             <div class="file-item">
-                                <div class="file-name">{{ file.name }}</div>
+                                <div class="file-name-column">{{ file.name }}</div>
                                 <div class="page-range">
-                                    <label for="page-{{ loop.index }}">提取页面范围：</label>
-                                    <input type="text" id="page-{{ loop.index }}" name="{{ file.stem }}" placeholder="如：1,3,5-7" style="padding: 8px; width: 250px;">
-                                    <button type="button" onclick="convertRange('page-{{ loop.index }}')" style="padding: 8px;">解析</button>
+                                    <input type="text" id="page-{{ loop.index }}" name="{{ file.stem }}" value="{{ file.default_page if file.default_page else '' }}" placeholder="如：1,3,5-7" style="padding: 8px; width: 250px;">
+                                    <button type="button" onclick="convertRange('page-{{ loop.index }}')" style="padding: 8px;">保存</button>
                                     <span id="parsed-{{ loop.index }}" style="color: #666; font-size: 14px;"></span>
                                 </div>
                             </div>

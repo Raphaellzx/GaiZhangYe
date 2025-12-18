@@ -18,7 +18,7 @@ echo [2/3] 正在清除浏览器缓存...
 :: 3. 启动服务
 echo [3/3] 正在启动HTML服务...
 echo.
-echo 服务将在 http://localhost:5000 启动
+echo 服务将在 http://localhost:5001 启动
 echo 浏览器将在2秒后自动打开
 echo 按 Ctrl+C 停止服务
 echo.

@@ -11,7 +11,7 @@ import time
 import webbrowser
 
 def kill_old_processes():
-    """杀死旧的Python进程"""
+    """清除旧的Python进程"""
     print("[1/3] 正在检查旧的Python进程...")
     try:
         # Windows系统

@@ -59,18 +59,12 @@ def prepare_stamp_page():
     nostamped_word_dir = file_manager.get_func1_dir("nostamped_word")
     if nostamped_word_dir.exists():
         import os
-        print(f"目录存在: {nostamped_word_dir}")
-        file_count = 0
         for filename in os.listdir(nostamped_word_dir):
-            print(f"检查文件: {filename}")
             if filename.endswith(('.docx', '.doc')):
-                print(f"添加文件: {filename}")
                 word_files.append({
                     'name': filename,
                     'stem': os.path.splitext(filename)[0]
                 })
-                file_count += 1
-        print(f"总计找到: {file_count}个文件")
 
     return render_template('pages/prepare_stamp.html', folders=folders, word_files=word_files)
 

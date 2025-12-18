@@ -73,14 +73,24 @@ class DataCommunicationService:
             # 扫描func1目录，生成默认target_pages
             func1_word_dir = self.file_manager.get_func1_dir('nostamped_word')
             word_files = self.file_processor.list_files(func1_word_dir, ['.docx', '.doc'])
-            
+
+            from GaiZhangYe.core.basic.word_processor import WordProcessor
+            wp = WordProcessor()
+
             func1_data = {}
             for word_file in word_files:
                 # 默认提取所有页面
-                # 注意：这里无法直接获取Word文件的实际页数，所以默认提供空列表或示例范围
-                # 如果需要更精确的处理，可以先转换为PDF再获取页数
-                # 这里采用保守策略，默认提供空列表
-                func1_data[word_file.stem] = []
+                # 获取Word文件的实际页数
+                try:
+                    page_count = wp.get_word_page_count(word_file)
+                except Exception as e:
+                    print(f"获取文件页数失败 {word_file.name}: {e}")
+                    page_count = 0
+
+                func1_data[word_file.stem] = {
+                    'pages': [],  # 选择的页面
+                    'total_pages': page_count  # 总页数
+                }
             
             # 保存func1数据
             self.save_func1_data(func1_data)
