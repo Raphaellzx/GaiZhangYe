@@ -7,6 +7,7 @@ from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.basic.pdf_processor import PdfProcessor
 from GaiZhangYe.core.basic.file_processor import FileProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError
+from GaiZhangYe.core.data_communication import get_data_service
 
 import fitz # PyMuPDF
 import os
@@ -21,7 +22,13 @@ class StampPrepareService:
         self.pdf_processor = PdfProcessor()
         self.file_processor = FileProcessor()
 
-    def run(self, target_pages: dict[str, list[int]], word_dir: Optional[Path] = None) -> list[Path]:
+    def run(self, target_pages: Optional[dict[str, list[int]]] = None, word_dir: Optional[Path] = None) -> list[Path]:
+        # 如果没有传入target_pages，从数据文件中读取
+        if target_pages is None:
+            target_pages = get_data_service().get_func1_data()
+        # 如果数据文件中也没有数据，抛出异常
+        if not target_pages:
+            raise BusinessError("没有找到要提取的页面配置数据")
         """
         :param target_pages: 要提取的页面字典，键为Word文件名，值为页面列表
         """
@@ -61,31 +68,35 @@ class StampPrepareService:
                     # 创建临时文件路径 - 保存到Temp目录
                     temp_pdf = temp_dir / f"{word_filename}_temp.pdf"
 
-                    # 只转换指定页面
-                    # 这里先转换整个Word到PDF，然后提取页面
-                    # 注意：win32com的Word API没有直接转换指定页面的功能
-                    self.word_processor.word_to_pdf(word_file, temp_pdf)
+                    try:
+                        # 只转换指定页面
+                        # 这里先转换整个Word到PDF，然后提取页面
+                        # 注意：win32com的Word API没有直接转换指定页面的功能
+                        self.word_processor.word_to_pdf(word_file, temp_pdf)
 
-                    # 打开临时PDF文件并提取指定页面
-                    with fitz.open(temp_pdf) as doc:
-                        for page_num in pages_to_extract:
-                            if 1 <= page_num <= len(doc):
-                                merged_pdf.insert_pdf(doc, from_page=page_num - 1, to_page=page_num - 1)
+                        # 打开临时PDF文件并提取指定页面
+                        with fitz.open(temp_pdf) as doc:
+                            for page_num in pages_to_extract:
+                                if 1 <= page_num <= len(doc):
+                                    merged_pdf.insert_pdf(doc, from_page=page_num - 1, to_page=page_num - 1)
 
-                                # 保存提取的页面到nostamped_PDF目录
-                                pdf_output = nostamped_pdf_dir / f"{word_filename}_第{page_num}页.pdf"
-                                with fitz.open() as new_doc:
-                                    new_doc.insert_pdf(doc, from_page=page_num - 1, to_page=page_num - 1)
-                                    new_doc.save(pdf_output)
-                                    logger.info(f"已保存提取的页面：{pdf_output}")
+                                    # 保存提取的页面到nostamped_PDF目录
+                                    pdf_output = nostamped_pdf_dir / f"{word_filename}_第{page_num}页.pdf"
+                                    with fitz.open() as new_doc:
+                                        new_doc.insert_pdf(doc, from_page=page_num - 1, to_page=page_num - 1)
+                                        new_doc.save(pdf_output)
+                                        logger.info(f"已保存提取的页面：{pdf_output}")
 
-                            else:
-                                logger.warning(f"页码 {page_num} 超出 {word_file.name} 的范围")
-
-                    # 删除临时PDF文件
-
-                    if os.path.exists(temp_pdf):
-                        os.unlink(temp_pdf)
+                                else:
+                                    logger.warning(f"页码 {page_num} 超出 {word_file.name} 的范围")
+                    finally:
+                        # 删除临时PDF文件
+                        if temp_pdf.exists():
+                            try:
+                                temp_pdf.unlink()
+                                logger.info(f"已删除临时PDF文件：{temp_pdf}")
+                            except Exception as e:
+                                logger.error(f"删除临时PDF文件失败：{temp_pdf}", exc_info=True)
 
             # 保存合并后的PDF文件
             if merged_pdf.page_count > 0:

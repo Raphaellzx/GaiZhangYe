@@ -11,7 +11,8 @@ from GaiZhangYe.core.basic.file_processor import FileProcessor
 from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.basic.pdf_processor import PdfProcessor
 from GaiZhangYe.core.basic.image_processor import ImageProcessor
-from GaiZhangYe.core.models.exceptions import BusinessError, ImageProcessError
+from GaiZhangYe.core.models.exceptions import BusinessError
+from GaiZhangYe.core.data_communication import get_data_service
 
 logger = get_logger(__name__)
 

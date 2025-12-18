@@ -12,6 +12,8 @@ dependencies = [
   "python-dotenv>=1.0",
   "wxpython>=4.2.4",
   "flask>=3.1.2",
+  "cors>=1.0.1",
+  "flask-cors>=6.0.2",
 ]
 
 [project.optional-dependencies]

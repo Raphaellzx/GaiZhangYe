@@ -170,10 +170,37 @@
             </div>
         </div>
 
+        <!-- 目录快捷访问按钮 -->
         <div class="directory-info">
+            <h3>目录快捷访问</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                {% for dir_name in ['Nostamped_Word', 'Nostamped_PDF', 'Stamped_Pages', 'Temp', 'Images', 'TargetFiles', 'Result_Word', 'Result_PDF'] %}
+                    <button class="btn" onclick="openDirectory('{{ dir_name }}')" style="padding: 8px 16px; font-size: 14px; background-color: #5299d3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        {{ dir_name }}
+                    </button>
+                {% endfor %}
+            </div>
             <h3>目录信息</h3>
             <div id="directories"></div>
         </div>
+        <script>
+            // 添加目录打开功能
+            function openDirectory(dirName) {
+                fetch(`/api/open-directory?dir_name=${encodeURIComponent(dirName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('目录已打开');
+                        } else {
+                            alert('打开目录失败: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('打开目录失败');
+                    });
+            }
+        </script>
 
         <footer>
             <p>盖章页工具 © 2025</p>
