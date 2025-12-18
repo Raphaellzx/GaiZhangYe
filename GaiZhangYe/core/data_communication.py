@@ -103,12 +103,29 @@ class DataCommunicationService:
             target_files = self.file_processor.list_files(func2_target_dir, ['.docx'])
             image_files = self.file_processor.list_files(func2_image_dir, ['.png', '.jpg', '.jpeg'])
             
+            # 使用Windows资源管理器风格的排序函数
+            def natural_sort_key(s):
+                """自然排序键生成器，模拟Windows资源管理器排序"""
+                import re
+                return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+
+            # 对文件和图片进行排序
+            sorted_target_files = sorted(target_files, key=lambda f: natural_sort_key(f.name))
+            sorted_image_files = sorted(image_files, key=lambda f: natural_sort_key(f.name))
+
             func2_data = {}
-            for target_file in target_files:
-                # 默认配置：使用第一张图片插入到第一页
+            for i, target_file in enumerate(sorted_target_files):
+                # 为每个文档分配对应的图片（按顺序一一对应）
+                assigned_images = [sorted_image_files[i].name] if i < len(sorted_image_files) else []
+
+                # 默认配置：每个文件对应一张图片，插入到最后一页
                 func2_data[target_file.name] = {
-                    'images': [img.name for img in image_files[:1]] if image_files else [],
-                    'positions': [{'page': 1, 'x': 100, 'y': 100}]
+                    'images': assigned_images,  # 按顺序一一对应
+                    'positions': [{
+                        'page': 'last_page',  # 默认最后一页
+                        'x': 100,
+                        'y': 100
+                    } for _ in assigned_images]  # 每个图片对应一个位置
                 }
             
             # 保存func2数据
