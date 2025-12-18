@@ -11,23 +11,66 @@ import time
 import webbrowser
 
 def kill_old_processes():
-    """清除旧的Python进程"""
+    """清除旧的Python进程和占用指定端口的进程"""
     print("[1/3] 正在检查旧的Python进程...")
+
+    # 要检查的端口
+    ports_to_check = [5000, 5001]
+
     try:
         # Windows系统
         if sys.platform == "win32":
-            # 尝试使用更简单的方法杀死可能的旧进程
-            # 直接杀死所有python.exe进程中的app_api.py，使用taskkill的filter
-            # 注意：这种方法可能无法完全匹配，但更可靠
-            subprocess.run(["taskkill", "/F", "/FI", "IMAGENAME eq python.exe", "/FI", "WINDOWTITLE eq Python"],
-                         capture_output=True)
-            print("已尝试清除旧的Python进程")
+            # 只杀死占用端口的进程，不再杀死所有Python进程，避免杀死自身
+            print("✓ 跳过杀死所有Python进程，改为只检查占用端口的进程")
+
+            # 再检查并杀死占用指定端口的进程
+            for port in ports_to_check:
+                try:
+                    # 查找占用端口的进程ID
+                    result = subprocess.run(
+                        ["netstat", "-ano", "-p", "tcp"],
+                        capture_output=True, text=True
+                    )
+
+                    # 分析结果找到对应的PID
+                    for line in result.stdout.split('\n'):
+                        if f":{port} " in line and "LISTENING" in line:
+                            parts = line.split()
+                            pid = parts[-1]
+                            print(f"  发现占用端口 {port} 的进程PID: {pid}")
+
+                            # 杀死该进程
+                            subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+                            print(f"  ✓ 已杀死占用端口 {port} 的进程")
+                except Exception as e:
+                    print(f"  × 检查端口 {port} 失败: {e}")
+
         # Linux/macOS系统
         elif sys.platform in ["linux", "darwin"]:
-            subprocess.run(["pkill", "-f", "app_api.py"], capture_output=True)
-            print("✓ 已杀死旧的web服务进程")
+            # 检查并杀死占用指定端口的进程
+            for port in ports_to_check:
+                try:
+                    # 查找占用端口的进程ID
+                    result = subprocess.run(
+                        ["lsof", "-i", f":{port}"],
+                        capture_output=True, text=True
+                    )
+
+                    # 分析结果找到对应的PID
+                    for line in result.stdout.split('\n')[1:]:  # 跳过表头
+                        if line:
+                            parts = line.split()
+                            pid = parts[1]
+                            print(f"  发现占用端口 {port} 的进程PID: {pid}")
+
+                            # 杀死该进程
+                            subprocess.run(["kill", "-9", pid], capture_output=True)
+                            print(f"  ✓ 已杀死占用端口 {port} 的进程")
+                except Exception as e:
+                    print(f"  × 检查端口 {port} 失败: {e}")
+
     except Exception as e:
-        print("× 清除旧进程失败或没有旧进程:", str(e))
+        print("× 清除旧进程失败:", str(e))
 
 def start_service():
     """启动服务"""
@@ -45,12 +88,12 @@ def start_service():
     try:
         from GaiZhangYe.web.app import app
 
-        print("服务将在 http://localhost:5001 启动")
+        print("服务将在 http://localhost:5000 启动")
 
         # 打开浏览器
         def open_browser():
             time.sleep(2)
-            webbrowser.open('http://localhost:5001')
+            webbrowser.open('http://localhost:5000')
 
         import threading
         browser_thread = threading.Thread(target=open_browser)
@@ -77,8 +120,8 @@ def main():
     print("=" * 40)
     print()
 
-    # 不再尝试杀死旧进程
-    print("[1/2] 跳过旧进程检查")
+    # 尝试杀死旧进程
+    kill_old_processes()
     print()
 
     start_service()

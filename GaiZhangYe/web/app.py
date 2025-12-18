@@ -59,11 +59,25 @@ def prepare_stamp_page():
     nostamped_word_dir = file_manager.get_func1_dir("nostamped_word")
     if nostamped_word_dir.exists():
         import os
+        from GaiZhangYe.core.basic.word_processor import WordProcessor
+
+        word_processor = WordProcessor()
+
         for filename in os.listdir(nostamped_word_dir):
             if filename.endswith(('.docx', '.doc')):
+                file_path = nostamped_word_dir / filename
+
+                # 获取文件页数
+                page_count = None
+                try:
+                    page_count = word_processor.get_word_page_count(file_path)
+                except Exception as e:
+                    print(f"获取文件 {filename} 页数失败: {e}")
+
                 word_files.append({
                     'name': filename,
-                    'stem': os.path.splitext(filename)[0]
+                    'stem': os.path.splitext(filename)[0],
+                    'page_count': page_count
                 })
 
     return render_template('pages/prepare_stamp.html', folders=folders, word_files=word_files)
@@ -84,7 +98,6 @@ def status():
     return jsonify({
         "status": "running",
         "message": "盖章页工具HTML服务已启动",
-        "version": "1.0.0"
     })
 
 @app.route('/api/open-directory')
@@ -288,6 +301,49 @@ def api_save_func2_data():
             'error': str(e)
         })
 
+
+import sys
+import threading
+import os
+
+@app.route('/api/shutdown', methods=['POST'])
+def shutdown():
+    """终止服务的API端点"""
+    # 只能在开发环境下使用
+    try:
+        # 使用单独的线程来终止服务，确保能够返回响应
+        def terminate_service():
+            # 给响应时间，然后终止
+            import time
+            time.sleep(0.5)
+
+            # 不同平台的终止方式
+            try:
+                if sys.platform == "win32":
+                    # Windows系统
+                    os.system(f"taskkill /F /PID {os.getpid()}")
+                else:
+                    # Linux/macOS系统
+                    import signal
+                    os.kill(os.getpid(), signal.SIGINT)
+            except Exception:
+                # 如果上述方法失败，尝试直接退出
+                sys.exit()
+
+        # 启动终止线程
+        threading.Thread(target=terminate_service, daemon=True).start()
+
+        # 返回成功响应
+        return jsonify({
+            'success': True,
+            'message': '服务正在终止...'
+        })
+    except Exception as e:
+        logger.error(f"终止服务失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'终止服务失败: {str(e)}'
+        })
 
 if __name__ == '__main__':
     logger.info("启动HTML可视化服务...")

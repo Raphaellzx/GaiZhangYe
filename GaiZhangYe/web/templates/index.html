@@ -145,6 +145,14 @@
         <header>
             <h1>盖章页工具</h1>
             <p>快速、高效的盖章页处理解决方案</p>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button onclick="refreshPage()" style="background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                    刷新页面数据
+                </button>
+                <button onclick="shutdownServer()" style="background-color: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                    终止服务并关闭页面
+                </button>
+            </div>
         </header>
 
         <div class="features-container">
@@ -205,6 +213,54 @@
         <footer>
             <p>盖章页工具 © 2025</p>
         </footer>
+
+        <script>
+            // 刷新页面数据
+            function refreshPage() {
+                if (confirm('确定要刷新页面数据吗？')) {
+                    fetch('/api/refresh-data', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('数据刷新完成，页面将重新加载');
+                            // 重新加载当前页面
+                            window.location.reload();
+                        } else {
+                            alert('数据刷新失败: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('数据刷新失败');
+                    });
+                }
+            }
+
+            // 终止服务并关闭页面
+            function shutdownServer() {
+                if (confirm('确定要终止服务并关闭页面吗？')) {
+                    fetch('/api/shutdown', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('服务已终止，页面将关闭');
+                            // 关闭当前页面
+                            window.close();
+                        } else {
+                            alert('终止服务失败: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('终止服务失败');
+                    });
+                }
+            }
+        </script>
     </div>
 
     <script>
