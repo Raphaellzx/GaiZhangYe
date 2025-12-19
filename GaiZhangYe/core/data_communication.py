@@ -113,23 +113,45 @@ class DataCommunicationService:
             sorted_target_files = sorted(target_files, key=lambda f: natural_sort_key(f.name))
             sorted_image_files = sorted(image_files, key=lambda f: natural_sort_key(f.name))
 
-            func2_data = {}
+            func2_config = {}
+
+            # 导入WordProcessor获取页数
+            from GaiZhangYe.core.basic.word_processor import WordProcessor
+            wp = WordProcessor()
+
             for i, target_file in enumerate(sorted_target_files):
                 # 为每个文档分配对应的图片（按顺序一一对应）
                 assigned_images = [sorted_image_files[i].name] if i < len(sorted_image_files) else []
 
-                # 默认配置：每个文件对应一张图片，插入到最后一页
-                func2_data[target_file.name] = {
-                    'images': assigned_images,  # 按顺序一一对应
+                # 获取文件总页数
+                try:
+                    total_pages = wp.get_word_page_count(target_file)
+                    # 如果页数获取失败或为0，默认设为1
+                    total_pages = total_pages if total_pages > 0 else 1
+                except Exception as e:
+                    print(f"获取文件页数失败 {target_file.name}: {e}")
+                    total_pages = 1
+
+                # 默认配置：每个文件对应一张图片，插入到最后一页（使用实际总页数的数字）
+                func2_config[target_file.name] = {
+                    'total_pages': total_pages,  # 保存总页数字段
+                    'images': assigned_images,    # 按顺序一一对应
                     'positions': [{
-                        'page': 'last_page',  # 默认最后一页
+                        'page': total_pages,       # 使用实际总页数代替 'last_page'
                         'x': 100,
                         'y': 100
                     } for _ in assigned_images]  # 每个图片对应一个位置
                 }
             
+            # 生成新的双列表结构数据
+            func2_new_data = {
+                "target_files": [f.name for f in sorted_target_files],  # 所有Word文件列表
+                "images": [f.name for f in sorted_image_files],        # 所有图片文件列表
+                "config": func2_config  # 保持配置结构
+            }
+
             # 保存func2数据
-            self.save_func2_data(func2_data)
+            self.save_func2_data(func2_new_data)
             print(f"扫描到 {len(target_files)} 个目标文件和 {len(image_files)} 个图片文件，已生成func2默认数据")
             
             return True
@@ -176,3 +198,4 @@ def get_data_service() -> DataCommunicationService:
         # 应用启动时自动生成数据
         _data_service.auto_generate_data()
     return _data_service
+

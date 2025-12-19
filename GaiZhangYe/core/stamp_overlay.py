@@ -63,18 +63,30 @@ class StampOverlayService:
             images_dir, result_word_dir, result_pdf_dir, target_word_dir = self._init_directories(target_word_dir)
 
             # 2. 验证并准备图片文件
-            self._validate_images(image_files)
+            # 如果没有提供configs，才需要验证image_files
+            # configs 可能是 None 或者 空字典 {}
+            if configs is None or (isinstance(configs, dict) and len(configs) == 0):
+                # 确保在没有配置时，image_files 非空且已验证
+                self._validate_images(image_files)
+
+            # 另外，如果有配置但image_files是None，不需要验证
+            # 因为配置模式会从配置中获取图片
 
             # 3. 获取并处理目标Word文件
             word_files = self._get_target_word_files(target_word_dir)
 
             # 应用自然排序
-            sorted_images = sorted(image_files, key=windows_natural_sort_key)
             sorted_word_files = sorted(word_files, key=windows_natural_sort_key)
+
+            # 根据情况生成sorted_images
+            sorted_images = []
+            if not configs:
+                # 默认模式下需要sorted_images
+                sorted_images = sorted(image_files, key=windows_natural_sort_key)
 
             # 5. 批量插入图片并转换为PDF
             result_word_files = self._batch_insert_images_and_convert(
-                sorted_images, sorted_word_files, images_dir, result_word_dir, result_pdf_dir, image_width, configs)
+                sorted_word_files, images_dir, result_word_dir, result_pdf_dir, image_width, configs, sorted_images)
 
             logger.info(f"【功能2】执行完成，成功处理{len(result_word_files)}个Word文件")
             return result_word_files
@@ -102,9 +114,9 @@ class StampOverlayService:
             raise BusinessError(f"目标Word目录{target_word_dir}中无Word文件")
         return word_files
 
-    def _batch_insert_images_and_convert(self, sorted_images: List[Path], sorted_word_files: List[Path],
+    def _batch_insert_images_and_convert(self, sorted_word_files: List[Path],
                                          images_dir: Path, result_word_dir: Path, result_pdf_dir: Path,
-                                         image_width: int, configs: list) -> List[Path]:
+                                         image_width: int, configs: dict, sorted_images: List[Path] = None) -> List[Path]:
         """批量插入图片并将结果转换为PDF
         核心逻辑：
         1. 将图片按顺序分配给Word文件
@@ -208,13 +220,20 @@ class StampOverlayService:
 
         return result_word_files
 
-    def _get_current_config(self, filename: str, configs: list) -> object:
+    def _get_current_config(self, filename: str, configs: dict) -> object:
         """根据文件名获取对应的配置信息"""
         if not configs:
             return None
-        for config in configs:
-            if config.filename == filename:
-                return config
+        if filename in configs:
+            # 将字典结构转换为对象结构以便后续处理
+            import collections
+            Config = collections.namedtuple('Config', ['filename', 'image_files', 'insert_positions'])
+            items = configs[filename]
+            return Config(
+                filename=filename,
+                image_files=[item['image'] for item in items],
+                insert_positions=[item['position'] for item in items]
+            )
         return None
 
     def _process_with_config(self, current_config: object, word: Path, output_word: Path,
@@ -263,7 +282,11 @@ class StampOverlayService:
                 final_image = scaled_image
 
             # 获取插入位置
-            image_location = position if isinstance(position, str) and position != "" else "last_page"
+            # 只支持数字格式的页码
+            if position:  # 非空值
+                image_location = str(position)  # 转换为字符串格式
+            else:
+                image_location = "1"  # 默认插入到第一页
 
             # 插入图片
             self.word_processor.insert_image_to_word(temp_output, final_image, image_location, temp_output)

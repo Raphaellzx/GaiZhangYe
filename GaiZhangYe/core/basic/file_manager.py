@@ -24,7 +24,7 @@ class FileManager:
                 "nostamped_word": func1_root / "Nostamped_Word",
                 "nostamped_pdf": func1_root / "Nostamped_PDF",
                 "stamped_pages": func1_root / "Stamped_Pages",
-                "temp": func1_root / "Temp"
+                "temp": func1_root / ".temp"
             }
             # 功能2目录：Images/TargetFiles/Result_Word/Result_PDF
             func2_root = self.root_dir / "func2"
@@ -32,7 +32,8 @@ class FileManager:
                 "images": func2_root / "Images",
                 "target_files": func2_root / "TargetFiles",
                 "result_word": func2_root / "Result_Word",
-                "result_pdf": func2_root / "Result_PDF"
+                "result_pdf": func2_root / "Result_PDF",
+                "temp": func2_root / ".temp"
             }
             # 批量创建所有目录
             all_dirs = list(self.func1_dirs.values()) + list(self.func2_dirs.values())
@@ -50,7 +51,7 @@ class FileManager:
         return self.func1_dirs[dir_type]
 
     def get_func2_dir(self, dir_type: str) -> Path:
-        """获取功能2指定目录（dir_type: images/target_files/result_word/result_pdf）"""
+        """获取功能2指定目录（dir_type: images/target_files/result_word/result_pdf/temp）"""
         if dir_type not in self.func2_dirs:
             raise ValueError(f"功能2无此目录类型：{dir_type}")
         return self.func2_dirs[dir_type]

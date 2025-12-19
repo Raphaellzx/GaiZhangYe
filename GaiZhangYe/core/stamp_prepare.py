@@ -9,7 +9,7 @@ from GaiZhangYe.core.basic.file_processor import FileProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError
 from GaiZhangYe.core.data_communication import get_data_service
 
-import fitz # PyMuPDF
+import pymupdf as fitz # PyMuPDF
 import os
 
 logger = get_logger(__name__)

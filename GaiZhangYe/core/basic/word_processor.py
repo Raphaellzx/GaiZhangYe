@@ -1,7 +1,12 @@
 # GaiZhangYe/core/word_processor.py
 import win32com.client
 import pythoncom
+
+# 动态生成常量
+win32 = win32com.client.constants
 from pathlib import Path
+from typing import List
+
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.models.exceptions import WordProcessError
 
@@ -16,40 +21,106 @@ class WordProcessor:
         """获取Word应用实例（单例）"""
         pythoncom.CoInitialize()
         if not self._word_app:
+            # 使用DispatchEx避免冲突，后台运行
             self._word_app = win32com.client.DispatchEx("Word.Application")
             self._word_app.Visible = False
             self._word_app.DisplayAlerts = 0  # 抑制弹窗
         return self._word_app
 
+    def _clean_doc(self, doc):
+        """清理文档：接受所有修订 + 删除所有注释"""
+        # 接受所有修订
+        if doc.Revisions.Count > 0:
+            doc.Revisions.AcceptAll()
+            logger.debug(f"已接受文档{doc.Name}的所有修订")
+        # 删除所有注释
+        if doc.Comments.Count > 0:
+            doc.Comments.DeleteAll()
+            logger.debug(f"已删除文档{doc.Name}的所有注释")
+
     def word_to_pdf(self, word_path: Path, pdf_path: Path) -> None:
-        """单文件Word转PDF"""
+        """单文件Word转PDF（含修订/注释清理）"""
+        # 前置校验
         if not word_path.exists():
             raise FileNotFoundError(f"Word文件不存在：{word_path}")
-        if word_path.suffix not in [".docx", ".doc"]:
-            raise WordProcessError(f"非Word文件：{word_path}")
-
+        if word_path.suffix.lower() not in [".docx", ".doc"]:
+            raise WordProcessError(f"非Word文件（仅支持.doc/.docx）：{word_path}")
+        
+        doc = None
         try:
             word_app = self._get_word_app()
-            doc = word_app.Documents.Open(str(word_path))
-            doc.SaveAs(str(pdf_path), FileFormat=17)  # 17=PDF格式
-            doc.Close()
+            # 打开文档（绝对路径避免解析问题）
+            doc = word_app.Documents.Open(str(word_path.absolute()))
+            
+            # 清理修订和注释
+            self._clean_doc(doc)
+
+            # 确保输出目录存在
+            pdf_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 导出PDF（使用直接常量值以避免AttributeError）
+            doc.ExportAsFixedFormat(
+                OutputFileName=str(pdf_path.absolute()),
+                ExportFormat=17,  # wdExportFormatPDF = 17
+                OpenAfterExport=False,  # 导出后不打开PDF
+                Item=0,  # wdExportDocument = 0 (仅导出正文)
+                CreateBookmarks=1  # wdExportCreateHeadingBookmarks = 1
+            )
+            
             logger.info(f"Word转PDF成功：{word_path} → {pdf_path}")
         except Exception as e:
             logger.error(f"Word转PDF失败：{word_path}", exc_info=True)
             raise WordProcessError(f"转换失败：{str(e)}") from e
+        finally:
+            # 确保文档关闭，释放资源
+            if doc:
+                doc.Close(SaveChanges=False)  # 不保存原文档的修改
 
-    def batch_word_to_pdf(self, input_dir: Path, output_dir: Path) -> list[Path]:
+    def batch_word_to_pdf(self, input_dir: Path, output_dir: Path) -> List[Path]:
         """批量Word转PDF"""
-        word_files = list(input_dir.glob("*.docx")) + list(input_dir.glob("*.doc"))
+        # 校验输入目录
+        if not input_dir.exists():
+            raise WordProcessError(f"输入目录不存在：{input_dir}")
+        
+        # 获取所有Word文件（去重，Windows系统大小写不敏感）
+        word_files = set()
+        for ext in ["*.docx", "*.doc", "*.DOCX", "*.DOC"]:
+            word_files.update(input_dir.glob(ext))
+
+        word_files = list(word_files)
         if not word_files:
-            raise WordProcessError(f"目录{input_dir}无Word文件")
+            raise WordProcessError(f"目录{input_dir}无Word文件（.doc/.docx）")
 
         pdf_paths = []
         for word_file in word_files:
-            pdf_path = output_dir / f"{word_file.stem}.pdf"
-            self.word_to_pdf(word_file, pdf_path)
-            pdf_paths.append(pdf_path)
+            try:
+                # 构造PDF输出路径
+                pdf_path = output_dir / f"{word_file.stem}.pdf"
+                # 调用单文件转换（已包含修订/注释清理）
+                self.word_to_pdf(word_file, pdf_path)
+                pdf_paths.append(pdf_path)
+            except (FileNotFoundError, WordProcessError) as e:
+                # 单个文件失败不中断批量流程，仅记录日志
+                logger.warning(f"跳过文件{word_file}：{str(e)}")
+                continue
+
+        logger.info(f"批量转换完成，成功生成{len(pdf_paths)}/{len(word_files)}个PDF文件")
         return pdf_paths
+
+    def close(self):
+        """手动关闭Word应用，释放资源"""
+        if self._word_app:
+            try:
+                self._word_app.Quit()
+                logger.info("Word应用已退出")
+            except Exception as e:
+                logger.warning(f"退出Word应用失败：{str(e)}")
+            finally:
+                self._word_app = None
+
+    def __del__(self):
+        """析构函数：自动关闭Word应用"""
+        self.close()
 
     def get_word_page_count(self, word_path: Path) -> int:
         """获取Word文件的页数"""
@@ -79,7 +150,7 @@ class WordProcessor:
             try:
                 from pathlib import Path
                 import tempfile
-                import fitz  # PyMuPDF
+                import pymupdf as fitz  # PyMuPDF
 
                 # 创建临时PDF文件
                 with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
@@ -155,8 +226,18 @@ class WordProcessor:
             shape.RelativeHorizontalPosition = 1
             shape.RelativeVerticalPosition = 1
             current_section = doc.ActiveWindow.Selection.Sections(1)
-            shape.Width = current_section.PageSetup.PageWidth
-            shape.Height = current_section.PageSetup.PageHeight
+
+            page_height = current_section.PageSetup.PageHeight
+            page_width = current_section.PageSetup.PageWidth
+
+            if(page_height>page_width):
+                shape.Width = page_width
+                shape.Height = page_height
+            else:
+                shape.Width = page_height
+                shape.Height = page_width
+                shape.rotation=90
+
             shape.Left = -999995
             shape.Top = -999995
 
@@ -167,8 +248,3 @@ class WordProcessor:
             logger.error(f"插入图片失败：{word_path}", exc_info=True)
             raise WordProcessError(f"插入失败：{str(e)}") from e
 
-    def __del__(self):
-        """销毁Word实例"""
-        if self._word_app:
-            self._word_app.Quit()
-            pythoncom.CoUninitialize()

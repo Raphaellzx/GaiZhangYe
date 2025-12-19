@@ -15,7 +15,7 @@ def kill_old_processes():
     print("[1/3] 正在检查旧的Python进程...")
 
     # 要检查的端口
-    ports_to_check = [5000, 5001]
+    ports_to_check = [5001]
 
     try:
         # Windows系统
@@ -88,12 +88,12 @@ def start_service():
     try:
         from GaiZhangYe.web.app import app
 
-        print("服务将在 http://localhost:5000 启动")
+        print("服务将在 http://localhost:5001 启动")
 
         # 打开浏览器
         def open_browser():
-            time.sleep(2)
-            webbrowser.open('http://localhost:5000')
+            time.sleep(1)
+            webbrowser.open('http://localhost:5001')
 
         import threading
         browser_thread = threading.Thread(target=open_browser)
@@ -103,7 +103,7 @@ def start_service():
         # 启动服务
         app.run(
             host='0.0.0.0',
-            port=5000,
+            port=5001,
             debug=False
         )
 
@@ -126,10 +126,7 @@ def main():
 
     start_service()
 
-    print("[3/3] 正在打开浏览器...")
     print()
-
-
 
 if __name__ == "__main__":
     main()

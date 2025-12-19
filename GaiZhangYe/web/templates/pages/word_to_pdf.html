@@ -4,126 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word批量转PDF - 盖章页工具</title>
-    <style>
-        /* 基础样式 */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f7fa;
-            color: #333;
-        }
-
-        /* 容器 */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* 头部 */
-        header {
-            background-color: #5299d3;
-            color: white;
-            padding: 20px;
-            margin-bottom: 30px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .back-btn {
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .back-btn:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-        }
-
-        /* 内容区 */
-        .content {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-
-        h2 {
-            color: #5299d3;
-            margin-top: 0;
-        }
-
-        /* 功能说明 */
-        .instructions {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-
-        /* 操作区域 */
-        .operations {
-            margin-top: 30px;
-        }
-
-        /* 按钮 */
-        .btn {
-            background-color: #5299d3;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 15px;
-        }
-
-        .btn:hover {
-            background-color: #3a7cb0;
-        }
-
-        /* 页脚 */
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: #6c757d;
-            font-size: 14px;
-            border-top: 1px solid #dee2e6;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/htsc-theme.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Word批量转PDF</h1>
-            <button class="back-btn" onclick="window.location.href='/'">返回首页</button>
+            <div>
+                <button class="back-btn" onclick="window.location.href='/'">返回首页</button>
                 <button onclick="refreshPage()" style="background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                     刷新页面数据
                 </button>
                 <button onclick="shutdownServer()" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                     终止服务并关闭页面
                 </button>
+            </div>
         </header>
 
         <div class="content">
             <div class="instructions">
                 <h3>功能说明</h3>
-                <p>将多个Word文件批量转换为PDF文件。保持文件格式和内容的完整性。</p>
+                <p>将多个Word文件批量转换为PDF文件。转换出的pdf不包含批注，且接受所有修订。</p>
 
                 <h3>操作步骤</h3>
                 <ol>
-                    <li>将需要转换的Word文件放入指定目录</li>
+                    <li>输入需要转换的Word文件目录</li>
+                    <li>输入PDF保存目录</li>
                     <li>点击下方"开始转换"按钮</li>
-                    <li>等待转换完成，结果将显示在页面上</li>
+                    <li>等待转换完成</li>
                 </ol>
+            </div>
+
+            <div class="config-section">
+                <h3>转换配置</h3>
+
+                <div style="margin: 15px 0;">
+                    <label for="word-input-dir" style="display: inline-block; width: 150px; font-weight: bold;">Word文件目录:</label>
+                    <input type="text" id="word-input-dir" style="width: 480px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请手动输入目录路径，例如：D:文档Word文件">
+                </div>
+
+                <div style="margin: 15px 0;">
+                    <label for="pdf-output-dir" style="display: inline-block; width: 150px; font-weight: bold;">PDF保存目录:</label>
+                    <input type="text" id="pdf-output-dir" style="width: 480px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请手动输入目录路径，例如：D:文档PDF输出">
+                </div>
             </div>
 
             <div class="operations">
@@ -140,16 +63,164 @@
     </div>
 
     <script>
+        // 目录选择功能
+        let selectedWordDir = '';
+        let selectedPdfDir = '';
+
+        // 注意：现代浏览器因安全限制，不再允许JavaScript直接获取完整本地文件路径
+        // 因此浏览按钮仅作为辅助功能，若失败请手动输入路径
+        function selectWordDirectory() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.dir = true;
+            input.multiple = true;
+            input.style.display = 'none';
+
+            // 添加到DOM
+            document.body.appendChild(input);
+
+            // 处理选择结果
+            input.onchange = (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    let directoryPath = '';
+
+                    try {
+                        // 尝试获取目录路径的不同方法
+                        if (file.path) {
+                            // 方法1: Chrome/Firefox/Edge 可能提供路径
+                            const lastIndex = file.path.lastIndexOf(file.name);
+                            directoryPath = file.path.substring(0, lastIndex).trim();
+                        } else if (file.webkitRelativePath) {
+                            // 方法2: 使用相对路径信息猜测目录名称
+                            const dirParts = file.webkitRelativePath.split('/');
+                            if (dirParts.length > 1) {
+                                // 仅能获取目录名称，无法获取完整路径
+                                directoryPath = dirParts[0];
+                            }
+                        }
+
+                        if (directoryPath) {
+                            // 如果成功获取到路径或目录名
+                            document.getElementById('word-input-dir').value = directoryPath;
+                        } else {
+                            // 否则提示用户手动输入
+                            throw new Error('无法获取完整路径');
+                        }
+                    } catch (error) {
+                        console.error('路径解析错误:', error);
+                        alert('浏览器安全限制导致无法自动获取完整目录路径。\n\n请手动输入目录路径，例如：D:\\文档\\Word文件');
+                    } finally {
+                        // 清理
+                        document.body.removeChild(input);
+                    }
+                }
+            };
+
+            // 触发选择对话框
+            input.click();
+        }
+
+        function selectPdfDirectory() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.dir = true;
+            input.multiple = true;
+            input.style.display = 'none';
+
+            // 添加到DOM
+            document.body.appendChild(input);
+
+            // 处理选择结果
+            input.onchange = (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    let directoryPath = '';
+
+                    try {
+                        // 尝试获取目录路径的不同方法
+                        if (file.path) {
+                            // 方法1: Chrome/Firefox/Edge 可能提供路径
+                            const lastIndex = file.path.lastIndexOf(file.name);
+                            directoryPath = file.path.substring(0, lastIndex).trim();
+                        } else if (file.webkitRelativePath) {
+                            // 方法2: 使用相对路径信息猜测目录名称
+                            const dirParts = file.webkitRelativePath.split('/');
+                            if (dirParts.length > 1) {
+                                // 仅能获取目录名称，无法获取完整路径
+                                directoryPath = dirParts[0];
+                            }
+                        }
+
+                        if (directoryPath) {
+                            // 如果成功获取到路径或目录名
+                            document.getElementById('pdf-output-dir').value = directoryPath;
+                        } else {
+                            // 否则提示用户手动输入
+                            throw new Error('无法获取完整路径');
+                        }
+                    } catch (error) {
+                        console.error('路径解析错误:', error);
+                        alert('浏览器安全限制导致无法自动获取完整目录路径。\n\n请手动输入目录路径，例如：D:\\文档\\PDF输出');
+                    } finally {
+                        // 清理
+                        document.body.removeChild(input);
+                    }
+                }
+            };
+
+            // 触发选择对话框
+            input.click();
+        }
+
+        // 开始转换
         function startConversion() {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '<p style="color: blue;">正在转换中...</p>';
 
-            // TODO: 调用API开始转换
-            setTimeout(() => {
-                resultDiv.innerHTML = '<p style="color: green;">转换完成！PDF文件已生成在 result_PDF 目录。</p>';
-            }, 2000);
+            const config = {};
+
+            // 验证目录路径
+            const wordDir = document.getElementById('word-input-dir').value;
+            const pdfDir = document.getElementById('pdf-output-dir').value;
+
+            if (!wordDir) {
+                resultDiv.innerHTML = '<p style="color: red;">转换失败: 请选择Word文件目录</p>';
+                return;
+            }
+
+            if (!pdfDir) {
+                resultDiv.innerHTML = '<p style="color: red;">转换失败: 请选择PDF保存目录</p>';
+                return;
+            }
+
+            // 将目录路径发送到服务器
+            config.input_dir = wordDir;
+            config.output_dir = pdfDir;
+
+            // 调用API开始转换
+            fetch('/api/word-to-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<p style="color: green;">${data.message}</p><p style="color: blue;">保存路径: ${data.output_dir}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">转换失败: ${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<p style="color: red;">转换失败: ${error.message}</p>`;
+            });
         }
-    
+
 
                 // 刷新页面数据
         function refreshPage() {
@@ -187,14 +258,17 @@
                         // 关闭当前页面
                         window.close();
                     } else {
-                        alert('终止服务失败: ' + data.error);
+                        alert('服务终止失败: ' + data.error);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('终止服务失败');
+                    alert('服务终止失败');
+                    // 关闭当前页面
+                    window.close();
                 });
             }
-        }</script>
+        }
+    </script>
 </body>
 </html>

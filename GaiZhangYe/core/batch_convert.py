@@ -39,9 +39,13 @@ class BatchConvertService:
             logger.info(f"找到{len(word_files)}个Word文件待转换")
 
             # 2. 批量转换
-            converted_pdfs = self.word_processor.batch_word_to_pdf(input_dir, output_dir)
+            converted_pdfs = self.word_processor.batch_word_to_pdf(
+                input_dir, output_dir
+            )
 
-            logger.info(f"【功能3】批量转换完成，成功生成{len(converted_pdfs)}个PDF文件")
+            logger.info(
+                f"【功能3】批量转换完成，成功生成{len(converted_pdfs)}个PDF文件"
+            )
             return converted_pdfs
         except Exception as e:
             logger.error("【功能3】批量转换失败", exc_info=True)

@@ -90,7 +90,10 @@
       "Bash(python3.10:*)",
       "Bash(pyinstaller:*)",
       "Bash(timeout 5 python -m GaiZhangYe.core.entrypoints.start_service:*)",
-      "Bash(python -c \"\nimport subprocess\nimport time\n\nprint(''测试修改后的脚本...'')\nresult = subprocess.run(\n    [''python'', ''GaiZhangYe/core/entrypoints/start_service.py''],\n    capture_output=True,\n    text=True,\n    timeout=10\n)\n\nprint(''\\n返回码:'', result.returncode)\nprint(''\\n标准输出:'')\nprint(result.stdout)\nprint(''\\n标准错误:'')\nprint(result.stderr)\n\":*)"
+      "Bash(python -c \"\nimport subprocess\nimport time\n\nprint(''测试修改后的脚本...'')\nresult = subprocess.run(\n    [''python'', ''GaiZhangYe/core/entrypoints/start_service.py''],\n    capture_output=True,\n    text=True,\n    timeout=10\n)\n\nprint(''\\n返回码:'', result.returncode)\nprint(''\\n标准输出:'')\nprint(result.stdout)\nprint(''\\n标准错误:'')\nprint(result.stderr)\n\":*)",
+      "Bash(xargs cat:*)",
+      "Bash(pkill:*)",
+      "Bash(python -m pytest:*)"
     ]
   }
 }

@@ -2,7 +2,7 @@
 """
 PDF处理核心：基于pymupdf实现PDF相关操作
 """
-import fitz  # pymupdf
+import pymupdf as fitz  # pymupdf
 from pathlib import Path
 from typing import List, Tuple
 from GaiZhangYe.utils.logger import get_logger

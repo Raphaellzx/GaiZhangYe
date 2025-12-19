@@ -4,134 +4,112 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>盖章页覆盖 - 盖章页工具</title>
-    <style>
-        /* 基础样式 */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f7fa;
-            color: #333;
-        }
-
-        /* 容器 */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* 头部 */
-        header {
-            background-color: #5299d3;
-            color: white;
-            padding: 20px;
-            margin-bottom: 30px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .back-btn {
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .back-btn:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-        }
-
-        /* 内容区 */
-        .content {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-
-        h2 {
-            color: #5299d3;
-            margin-top: 0;
-        }
-
-        /* 功能说明 */
-        .instructions {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-
-        /* 操作区域 */
-        .operations {
-            margin-top: 30px;
-        }
-
-        /* 按钮 */
-        .btn {
-            background-color: #5299d3;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 15px;
-        }
-
-        .btn:hover {
-            background-color: #3a7cb0;
-        }
-
-        /* 页脚 */
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: #6c757d;
-            font-size: 14px;
-            border-top: 1px solid #dee2e6;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/htsc-theme.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>盖章页覆盖</h1>
-            <button class="back-btn" onclick="window.location.href='/'">返回首页</button>
+            <div>
+                <button class="back-btn" onclick="window.location.href='/'">返回首页</button>
                 <button onclick="refreshPage()" style="background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                     刷新页面数据
                 </button>
                 <button onclick="shutdownServer()" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                     终止服务并关闭页面
                 </button>
+            </div>
         </header>
 
         <div class="content">
             <div class="instructions">
                 <h3>功能说明</h3>
                 <p>将盖章后的页面图片插入到Word文件中。支持批量处理，生成带盖章的Word和PDF文件。</p>
+                <p>默认情况下，Word文件与图片将按顺序一一对应。您可以自定义对应关系，一个Word文件可以对应多张图片，并为每张图片设置插入位置。</p>
 
                 <h3>操作步骤</h3>
                 <ol>
-                    <li>将盖章后的页面图片放入 <strong>images</strong> 目录</li>
+                    <li>将盖章/签字后的页面PDF放入 <strong>images</strong> 目录</li>
+                    <li>点击右侧的"从PDF提取图片"按钮。</li>
                     <li>将需要覆盖的Word文件放入 <strong>TargetFiles</strong> 目录</li>
+                    <li>配置Word与图片的对应关系</li>
+                    <li>为每张图片设置插入位置</li>
+                    <li>点击下方"保存配置"按钮</li>
                     <li>点击下方"开始覆盖"按钮</li>
-                    <li>等待处理完成，结果将显示在页面上</li>
+                    <li>等待处理完成</li>
                 </ol>
+                <h3>提示</h3>
+                <ul>
+                    <li>插入位置默认为Word文件的最后一页（-1）。</li>
+                    <li>文件夹可以在页面最底部快速访问</li>
+                </ul>
+            </div>
+
+            <div class="config-section">
+                <h2>配置管理</h2>
+
+                <!-- 列表展示 -->
+                <div class="lists-container">
+                    <div class="file-list">
+                        <h3>Word文件列表 <button class="btn" onclick="refreshWordFiles()" style="padding: 4px 10px; font-size: 12px;">刷新</button></h3>
+                        <div id="word-list">
+                            {% if word_files %}
+                                {% for file in word_files %}
+                                    <div class="file-item">{{ file.name }} (总页数: {{ file.total_pages }})</div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="file-item" style="color: #6c757d;">暂无Word文件</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="file-list">
+                        <h3>图片列表 <button class="btn" onclick="refreshImageFiles()" style="padding: 4px 10px; font-size: 12px;">刷新</button></h3>
+                        <div id="image-list">
+                            {% if image_files %}
+                                {% for file in image_files %}
+                                    <div class="file-item">{{ file }}</div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="file-item" style="color: #6c757d;">暂无图片文件</div>
+                            {% endif %}
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <button class="btn" onclick="extractImagesFromPdf()">从PDF提取图片</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 配置表格 -->
+                <div class="config-table-container">
+                    <h3>对应关系配置</h3>
+                    <table class="config-table" id="config-table">
+                        <thead>
+                            <tr>
+                                <th>Word文件和图片配置</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="config-table-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- 配置操作按钮 -->
+                <div class="config-actions">
+                    <button class="btn" onclick="generateDefaultConfig()">生成默认配置</button>
+                    <button class="btn" onclick="updateConfig()">保存配置</button>
+                </div>
             </div>
 
             <div class="operations">
-                <button class="btn" onclick="startProcessing()">开始覆盖</button>
-                <button class="btn" onclick="window.location.href='/api/directories'">查看目录</button>
+                <button class="btn btn-success" onclick="startProcessing()">开始覆盖</button>
+                <button class="btn" onclick="window.location.href='/api/directories'">查看路径</button>
+                <button class="btn" onclick="openDirectory('TargetFiles')">打开TargetFiles目录</button>
+                <button class="btn" onclick="openDirectory('Images')">打开Images目录</button>
+                <button class="btn" onclick="openDirectory('Result_Word')">打开结果Word目录</button>
+                <button class="btn" onclick="openDirectory('Result_PDF')">打开结果PDF目录</button>
 
-                <div id="result" style="margin-top: 20px; color: #666;"></div>
+                <div id="result"></div>
             </div>
         </div>
 
@@ -141,18 +119,313 @@
     </div>
 
     <script>
+        // 全局变量 - 使用模板变量直接赋值
+        let wordFiles = {{ word_files|tojson|safe }};
+        let imageFiles = {{ image_files|tojson|safe }};
+        let currentConfig = {};
+
+
+        // 添加配置行
+        function addConfigRow(wordFile, wordIndex) {
+            const tbody = document.getElementById('config-table-body');
+            const row = document.createElement('tr');
+            row.dataset.wordIndex = wordIndex;
+
+            // Word文件列
+            const wordCell = document.createElement('td');
+            wordCell.innerHTML = `<div style="font-size: larger; font-weight: bold; text-align: left;">${wordFile.name}</div>`;
+
+            // 图片配置列
+            const imageCell = document.createElement('td');
+            const imageConfig = document.createElement('div');
+            imageConfig.className = 'image-config-group';
+
+            // 计算当前应该分配的图片索引
+            // 前一个word的索引总和：0 + wordIndex
+            addImageConfigItem(imageConfig, wordFile, wordIndex); // 按顺序分配图片，第n个word对应第n张图片
+            imageCell.appendChild(imageConfig);
+
+            // 操作列
+            const actionCell = document.createElement('td');
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn';
+            addBtn.textContent = '+';
+            addBtn.onclick = (e) => {
+                e.stopPropagation();
+
+                // 计算下一个图片索引：当前已有的图片数量 + wordIndex
+                const nextImageIndex = imageConfig.children.length + wordIndex;
+                addImageConfigItem(imageConfig, wordFile, nextImageIndex);
+            };
+
+            actionCell.appendChild(addBtn);
+
+            // 合并Word文件和图片配置列
+            const mergedCell = document.createElement('td');
+
+            // 创建垂直布局
+            const verticalLayout = document.createElement('div');
+            verticalLayout.style.display = 'flex';
+            verticalLayout.style.flexDirection = 'column';
+            verticalLayout.style.gap = '15px';
+
+            // 添加Word文件信息在第一行
+            verticalLayout.appendChild(wordCell);
+
+            // 添加图片配置区域在其下方
+            verticalLayout.appendChild(imageConfig);
+
+            mergedCell.appendChild(verticalLayout);
+
+            row.appendChild(mergedCell);
+            row.appendChild(actionCell);
+            tbody.appendChild(row);
+        }
+
+        // 添加图片配置项
+        function addImageConfigItem(container, wordFile, imageIndex) {
+            const imageConfigItem = document.createElement('div');
+            imageConfigItem.className = 'image-config-item';
+
+            // 图片选择
+            const imageSelect = document.createElement('select');
+            imageSelect.className = 'image-select';
+
+            // 默认选项
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '选择图片';
+            imageSelect.appendChild(defaultOption);
+
+            // 图片选项
+            imageFiles.forEach((imageFile, idx) => {
+                const option = document.createElement('option');
+                option.value = imageFile;
+                option.textContent = imageFile;
+
+                // 默认按顺序选择：第一个word对应第imageIndex+1张图片
+                // 例如，第n个word添加第k个图片配置项，对应图片索引为imageIndex + k
+                if (idx === imageIndex) {
+                    option.selected = true;
+                }
+
+                imageSelect.appendChild(option);
+            });
+
+            // 插入位置
+            const positionInput = document.createElement('input');
+            positionInput.type = 'number'; // 只支持数字输入
+            positionInput.className = 'page-input';
+            positionInput.placeholder = '插入位置（页码）';
+            positionInput.value = (wordFiles.find(word => word.name === wordFile) || {}).total_pages || -1; // 默认最后一页（文件总页数）
+
+            // 删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger';
+            deleteBtn.textContent = '删除';
+            deleteBtn.style.padding = '4px 10px';
+            deleteBtn.style.fontSize = '12px';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                // 至少保留一个图片配置
+                if (container.children.length > 1) {
+                    container.removeChild(imageConfigItem);
+                }
+            };
+
+            imageConfigItem.appendChild(imageSelect);
+            imageConfigItem.appendChild(document.createTextNode(' '));
+            imageConfigItem.appendChild(document.createTextNode('插入位置：'));
+            imageConfigItem.appendChild(positionInput);
+            imageConfigItem.appendChild(document.createTextNode(' '));
+            imageConfigItem.appendChild(deleteBtn);
+
+            container.appendChild(imageConfigItem);
+        }
+
+        // 生成默认配置
+        function generateDefaultConfig() {
+            const tbody = document.getElementById('config-table-body');
+            tbody.innerHTML = '';
+
+            // 按顺序一一对应，确保一个word对应一个图片
+            wordFiles.forEach((wordFile, index) => {
+                addConfigRow(wordFile, index);
+            });
+
+            updateConfig();
+            alert('默认配置已生成');
+        }
+
+        // 更新配置
+        function updateConfig() {
+            const config = {};
+
+            // 遍历所有配置行
+            const rows = document.querySelectorAll('#config-table-body tr');
+            rows.forEach((row) => {
+                const wordFile = row.querySelector('td:first-child').textContent.trim();
+                const imageConfigItems = row.querySelectorAll('.image-config-item');
+
+                const images = [];
+
+                // 遍历图片配置
+                imageConfigItems.forEach((item) => {
+                    const imageSelect = item.querySelector('.image-select');
+                    const positionInput = item.querySelector('.page-input');
+
+                    const imageFile = imageSelect.value;
+                    // 处理插入位置：如果是"last_page"则保留字符串，否则尝试转换为数字
+                    let position = positionInput.value;
+                    if (position.toLowerCase() !== "last_page") {
+                        // 尝试转换为数字，但如果转换失败或为空，则使用默认值
+                        const parsedPos = parseInt(position);
+                        position = isNaN(parsedPos) ? "last_page" : parsedPos;
+                    }
+
+                    if (imageFile) {
+                        images.push({
+                            image: imageFile,
+                            position: position
+                        });
+                    }
+                });
+
+                if (images.length > 0) {
+                    config[wordFile] = images;
+                }
+            });
+
+            currentConfig = config;
+
+            // 更新所有图片选择下拉框，移除已被选择的图片
+            updateImageSelectOptions();
+
+            // 如果配置预览元素存在则更新
+            const preview = document.getElementById('config-preview');
+            if (preview) {
+                preview.textContent = JSON.stringify(config, null, 2);
+            }
+        }
+
+        // 更新图片选择下拉框，移除已被选择的图片
+        function updateImageSelectOptions() {
+            // 收集所有已被选择的图片
+            const usedImages = new Set();
+
+            // 遍历所有配置行
+            const rows = document.querySelectorAll('#config-table-body tr');
+            rows.forEach((row) => {
+                const imageConfigItems = row.querySelectorAll('.image-config-item');
+
+                // 遍历图片配置
+                imageConfigItems.forEach((item) => {
+                    const imageSelect = item.querySelector('.image-select');
+                    const selectedImage = imageSelect.value;
+
+                    if (selectedImage) {
+                        usedImages.add(selectedImage);
+                    }
+                });
+            });
+
+            // 更新所有下拉框
+            const allImageSelects = document.querySelectorAll('.image-select');
+            allImageSelects.forEach((select) => {
+                // 当前下拉框的选中值
+                const currentSelected = select.value;
+
+                // 保存当前选中值，防止被清除
+                let keepCurrent = false;
+
+                // 遍历所有选项
+                Array.from(select.options).forEach((option) => {
+                    if (option.value === '') {
+                        // 保留默认选项
+                        return;
+                    }
+
+                    if (usedImages.has(option.value)) {
+                        // 如果图片已被其他地方选择，并且不是当前下拉框的选中值，则禁用
+                        if (option.value !== currentSelected) {
+                            option.disabled = true;
+                            option.textContent = option.value + ' (已选择)';
+                        } else {
+                            keepCurrent = true;
+                            option.disabled = false;
+                            option.textContent = option.value;
+                        }
+                    } else {
+                        // 图片未被选择，启用
+                        option.disabled = false;
+                        option.textContent = option.value;
+                    }
+                });
+            });
+        }
+
+        // 为所有图片选择框添加change事件监听
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化配置表格
+            initializeConfigTable();
+
+            // 添加事件监听
+            const body = document.body;
+
+            // 使用事件委托监听图片选择变化
+            body.addEventListener('change', function(e) {
+                if (e.target && e.target.className === 'image-select') {
+                    updateConfig();
+                }
+            });
+        });
+
+        // 保存配置
+        function saveConfig() {
+            const resultDiv = document.getElementById('result');
+
+            fetch('/api/func2/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ config: currentConfig })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = '<p class="result-success">配置保存成功！</p>';
+                } else {
+                    resultDiv.innerHTML = '<p class="result-error">配置保存失败：' + data.error + '</p>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<p class="result-error">配置保存失败：' + error.message + '</p>';
+            });
+        }
+
+        // 开始处理
         function startProcessing() {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '<p style="color: blue;">正在覆盖中...</p>';
 
-            // TODO: 调用API开始覆盖
-            setTimeout(() => {
-                resultDiv.innerHTML = '<p style="color: green;">覆盖完成！结果已生成在 result_Word 和 result_PDF 目录。</p>';
-            }, 2500);
+            fetch('/api/start-stamp-overlay', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = '<p class="result-success">覆盖完成！结果已生成在 result_Word 和 result_PDF 目录。</p>';
+                } else {
+                    resultDiv.innerHTML = '<p class="result-error">覆盖失败：' + data.error + '</p>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<p class="result-error">覆盖失败：' + error.message + '</p>';
+            });
         }
-    
 
-                // 刷新页面数据
+        // 刷新页面数据
         function refreshPage() {
             if (confirm('确定要刷新页面数据吗？')) {
                 fetch('/api/refresh-data', {
@@ -162,7 +435,6 @@
                 .then(data => {
                     if (data.success) {
                         alert('数据刷新完成，页面将重新加载');
-                        // 重新加载当前页面
                         window.location.reload();
                     } else {
                         alert('数据刷新失败: ' + data.error);
@@ -175,7 +447,70 @@
             }
         }
 
-// 终止服务并关闭页面
+        // 初始化配置表格
+        function initializeConfigTable() {
+            const tbody = document.getElementById('config-table-body');
+            tbody.innerHTML = '';
+
+            // 如果有Word文件，生成默认行
+            if (wordFiles.length > 0) {
+                wordFiles.forEach((wordFile, index) => {
+                    addConfigRow(wordFile, index);
+                });
+            }
+        }
+
+        // 打开指定目录
+        function openDirectory(dirName) {
+            // 调用API打开目录，不显示提示
+            fetch(`/api/open-directory?dir_name=${encodeURIComponent(dirName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // 不显示任何提示
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        // 刷新Word文件列表
+        function refreshWordFiles() {
+            // 简单的刷新方式是重新加载页面
+            window.location.reload();
+        }
+
+        // 刷新图片文件列表
+        function refreshImageFiles() {
+            // 简单的刷新方式是重新加载页面
+            window.location.reload();
+        }
+
+        // 从PDF提取图片
+        function extractImagesFromPdf() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p style="color: blue;">正在从PDF提取图片...</p>';
+
+            fetch('/api/extract-images-from-pdf', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = '<p class="result-success">图片提取完成！共提取 ' + data.count + ' 张图片</p>';
+                    // 刷新页面
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    resultDiv.innerHTML = '<p class="result-error">图片提取失败：' + data.error + '</p>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<p class="result-error">图片提取失败：' + error.message + '</p>';
+            });
+        }
+
+        // 终止服务并关闭页面
         function shutdownServer() {
             if (confirm('确定要终止服务并关闭页面吗？')) {
                 fetch('/api/shutdown', {
@@ -185,7 +520,6 @@
                 .then(data => {
                     if (data.success) {
                         alert('服务已终止，页面将关闭');
-                        // 关闭当前页面
                         window.close();
                     } else {
                         alert('终止服务失败: ' + data.error);
@@ -196,6 +530,7 @@
                     alert('终止服务失败');
                 });
             }
-        }</script>
+        }
+    </script>
 </body>
 </html>
