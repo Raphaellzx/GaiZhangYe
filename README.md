@@ -21,6 +21,22 @@
 - Python 3.10.19或更高版本
 - Windows系统(Word处理依赖pywin32)
 
+### 版本管理(推荐)
+如果您需要管理多个Python版本，推荐使用pyenv：
+
+```bash
+# 安装pyenv (Windows: https://github.com/pyenv-win/pyenv-win)
+# Linux/macOS: https://github.com/pyenv/pyenv
+
+# 安装Python 3.10.19
+pyenv install 3.10.19
+
+# 在当前项目目录使用Python 3.10.19
+pyenv local 3.10.19
+```
+
+pyenv会自动使用项目目录中的.python-version文件(已包含)来管理版本。
+
 ### 安装步骤
 
 1. 克隆项目
@@ -29,19 +45,35 @@
    cd GaiZhangYe
    ```
 
-2. 创建虚拟环境
-   ```bash
-   python -m venv .venv
-   # Windows激活
-   .venv\Scripts\activate
-   # Linux/macOS激活
-   source .venv/bin/activate
-   ```
+#### 使用uv创建虚拟环境和安装依赖(推荐)
+uv是本项目推荐的现代化Python包和虚拟环境管理器，它会自动处理Python版本依赖：
 
-3. 安装依赖
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# 确保已安装uv
+pip install uv
+
+# uv会自动：
+# 1. 读取.pyenv-version或pyproject.toml中的requires-python配置
+# 2. 创建符合要求的虚拟环境
+# 3. 安装所有依赖
+uv install
+```
+
+#### 激活虚拟环境
+```bash
+# Windows激活
+.venv\Scripts\activate
+# Linux/macOS激活
+source .venv/bin/activate
+```
+
+#### 传统方式(可选)
+```bash
+# Windows
+py -3.10 -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt
+# Linux/macOS
+python3.10 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+```
 
 ## 使用
 
