@@ -1,8 +1,0 @@
-python-docx>=0.8.11
-PyPDF2>=2.11.1
-pillow>=9.3.0
-numpy>=1.23.5
-
-flask>=2.2.2
-
-loguru>=0.7.0

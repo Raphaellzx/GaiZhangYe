@@ -35,13 +35,19 @@ except ImportError as e:
     traceback.print_exc()
     sys.exit(1)
 
+# 处理PyInstaller打包后的路径问题
+if getattr(sys, 'frozen', False):
+    # 打包后的情况
+    app_root = sys._MEIPASS
+else:
+    # 开发模式的情况
+    app_root = os.path.abspath(os.path.dirname(__file__))
+
 # 创建Flask应用
 app = Flask(
     __name__,
-    template_folder=os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "templates")
-    ),
-    static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), "static")),
+    template_folder=os.path.join(app_root, "templates"),
+    static_folder=os.path.join(app_root, "static"),
 )
 
 
