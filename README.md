@@ -54,9 +54,10 @@ pip install uv
 
 # uv会自动：
 # 1. 读取.pyenv-version或pyproject.toml中的requires-python配置
-# 2. 创建符合要求的虚拟环境
-# 3. 安装所有依赖
-uv install
+# 2. 安装所需的Python版本(如果系统未安装)
+# 3. 创建符合要求的虚拟环境
+# 4. 安装所有依赖
+uv sync -p 3.10.19
 ```
 
 #### 激活虚拟环境
