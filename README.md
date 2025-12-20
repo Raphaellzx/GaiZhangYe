@@ -21,31 +21,15 @@
 - Python 3.10.19或更高版本
 - Windows系统(Word处理依赖pywin32)
 
-### 版本管理(推荐)
-如果您需要管理多个Python版本，推荐使用pyenv：
-
-```bash
-# 安装pyenv (Windows: https://github.com/pyenv-win/pyenv-win)
-# Linux/macOS: https://github.com/pyenv/pyenv
-
-# 安装Python 3.10.19
-pyenv install 3.10.19
-
-# 在当前项目目录使用Python 3.10.19
-pyenv local 3.10.19
-```
-
-pyenv会自动使用项目目录中的.python-version文件(已包含)来管理版本。
-
 ### 安装步骤
 
-1. 克隆项目
+#### 克隆项目
    ```bash
    git clone <repository-url>
    cd GaiZhangYe
    ```
 
-#### 使用uv创建虚拟环境和安装依赖(推荐)
+#### 使用uv创建虚拟环境和安装依赖
 uv是本项目推荐的现代化Python包和虚拟环境管理器，它会自动处理Python版本依赖：
 
 ```bash
