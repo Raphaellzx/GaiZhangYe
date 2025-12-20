@@ -77,8 +77,13 @@ def start_service():
     print("[2/3] 正在启动HTML服务...")
 
     # 将项目根目录添加到Python路径
-    current_file = os.path.abspath(__file__)
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+    if getattr(sys, 'frozen', False):
+        # PyInstaller打包后的情况
+        project_root = sys._MEIPASS
+    else:
+        # 开发模式的情况
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
     sys.path.insert(0, project_root)
 
     # 打印调试信息

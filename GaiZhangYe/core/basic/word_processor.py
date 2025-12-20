@@ -29,14 +29,21 @@ class WordProcessor:
 
     def _clean_doc(self, doc):
         """清理文档：接受所有修订 + 删除所有注释"""
-        # 接受所有修订
-        if doc.Revisions.Count > 0:
-            doc.Revisions.AcceptAll()
-            logger.debug(f"已接受文档{doc.Name}的所有修订")
-        # 删除所有注释
-        if doc.Comments.Count > 0:
-            doc.Comments.DeleteAll()
-            logger.debug(f"已删除文档{doc.Name}的所有注释")
+        try:
+            # 接受所有修订
+            if doc.Revisions.Count > 0:
+                doc.Revisions.AcceptAll()
+                logger.debug(f"已接受文档{doc.Name}的所有修订")
+        except Exception as e:
+            logger.warning(f"无法接受文档{doc.Name}的修订：{str(e)}")
+
+        try:
+            # 删除所有注释
+            if hasattr(doc, 'Comments') and doc.Comments.Count > 0:
+                doc.Comments.DeleteAll()
+                logger.debug(f"已删除文档{doc.Name}的所有注释")
+        except Exception as e:
+            logger.warning(f"无法删除文档{doc.Name}的注释：{str(e)}")
 
     def word_to_pdf(self, word_path: Path, pdf_path: Path) -> None:
         """单文件Word转PDF（含修订/注释清理）"""
@@ -191,32 +198,67 @@ class WordProcessor:
             selection = self._word_app.Selection
 
             # 根据image_location参数定位插入位置
-            if image_location in ['last_page', 'last'] or not image_location:
-                # 定位到最后一页（物理页面末尾）
-                # 2=wdStatisticPages - 计算文档总页数
-                target_page = self._word_app.ActiveDocument.ComputeStatistics(2)
-                # wdGoToPage=1，wdGoToAbsolute=1
-                selection.GoTo(What=1, Which=1, Count=target_page)
+            # 处理各种可能的输入类型
+            final_target_page = 1  # 默认第一页
+            use_last_page = False
 
-            elif image_location.isdigit():
-                # 定位到指定页码
-                page_num = int(image_location)
-                # 转到指定页
+            try:
+                image_location_str = str(image_location).strip()
+
+                logger.debug(f"解析图片插入位置: '{image_location_str}'")
+
+                # 先检查是否是最后一页的指示
+                if image_location_str in ['last_page', 'last'] or not image_location_str:
+                    # 定位到最后一页（物理页面末尾）
+                    # 2=wdStatisticPages - 计算文档总页数
+                    use_last_page = True
+                    final_target_page = self._word_app.ActiveDocument.ComputeStatistics(2)
+                    logger.debug(f"使用最后一页作为插入位置: {final_target_page}")
+
+                # 再检查是否是页码
+                elif image_location_str.isdigit():
+                    # 定位到指定页码
+                    final_target_page = int(image_location_str)
+                    # 确保页码不超过文档总页数
+                    max_pages = self._word_app.ActiveDocument.ComputeStatistics(2)
+                    final_target_page = min(final_target_page, max_pages)
+                    logger.debug(f"使用解析后的页码作为插入位置: {final_target_page}")
+
+                elif image_location_str.startswith('specific_page:'):
+                    # 解析格式 'specific_page:<页码>'
+                    page_num = int(image_location_str.split(':')[1])
+                    max_pages = self._word_app.ActiveDocument.ComputeStatistics(2)
+                    final_target_page = min(page_num, max_pages)
+                    logger.debug(f"使用特定页码格式作为插入位置: {final_target_page}")
+
+            except Exception as e:
+                # 如果无法解析位置，默认使用第一页而不是最后一页
+                logger.warning(f"无法解析图片插入位置：{image_location}，将使用第一页")
+                use_last_page = False
+                final_target_page = 1
+
+            # 执行实际的定位操作
+            # 尝试多种定位方式确保正确
+            try:
+                # 方式1: 使用GoTo定位
                 self._word_app.Selection.GoTo(
                     What=1,  # 1=wdGoToPage
                     Which=1,  # 1=wdGoToAbsolute
-                    Count=page_num
+                    Count=final_target_page
                 )
 
-            elif image_location.startswith('specific_page:'):
-                # 解析格式 'specific_page:<页码>'
-                page_num = int(image_location.split(':')[1])
-                # 转到指定页
-                self._word_app.Selection.GoTo(
-                    What=1,  # 1=wdGoToPage
-                    Which=1,  # 1=wdGoToAbsolute
-                    Count=page_num
-                )
+                # 方式2: 移动到页面顶部，确保在正确位置
+                self._word_app.Selection.HomeKey(Unit=6)  # wdStory = 6
+                if final_target_page > 1:
+                    for _ in range(1, final_target_page):
+                        self._word_app.Selection.NextPage()
+
+                logger.debug(f"成功定位到页面: {final_target_page}")
+
+            except Exception as e:
+                logger.warning(f"无法定位到指定页面 {final_target_page}，将使用第一页")
+                # 定位到第一页
+                self._word_app.Selection.HomeKey(Unit=6)  # wdStory = 6
 
             # 在当前位置插入图片
             shape = selection.InlineShapes.AddPicture(str(image_path)).ConvertToShape()

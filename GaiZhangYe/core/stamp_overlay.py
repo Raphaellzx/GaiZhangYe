@@ -80,8 +80,9 @@ class StampOverlayService:
 
             # 根据情况生成sorted_images
             sorted_images = []
-            if not configs:
-                # 默认模式下需要sorted_images
+            # 无论是配置模式还是默认模式都需要sorted_images
+            # 因为配置模式可能会失败回退到默认模式
+            if image_files:
                 sorted_images = sorted(image_files, key=windows_natural_sort_key)
 
             # 5. 批量插入图片并转换为PDF
@@ -172,6 +173,11 @@ class StampOverlayService:
                         # 将结果Word转换为PDF
                         if output_word.exists():
                             self._convert_word_to_pdf(output_word, result_pdf_dir)
+                            # 验证PDF是否生成
+                            pdf_file = result_pdf_dir / f"{output_word.stem}_stamped.pdf"
+                            if not pdf_file.exists():
+                                logger.warning(f"PDF文件 {pdf_file} 未生成，将重新尝试一次")
+                                self._convert_word_to_pdf(output_word, result_pdf_dir)
 
                         logger.info(f"[UI配置模式] 成功处理 Word 文件 {word.name}，插入图片 {len(actual_image_paths)} 张")
                 except Exception as e:
@@ -206,6 +212,11 @@ class StampOverlayService:
                         # 将结果Word转换为PDF
                         if output_word.exists():
                             self._convert_word_to_pdf(output_word, result_pdf_dir)
+                            # 验证PDF是否生成
+                            pdf_file = result_pdf_dir / f"{output_word.stem}_stamped.pdf"
+                            if not pdf_file.exists():
+                                logger.warning(f"PDF文件 {pdf_file} 未生成，将重新尝试一次")
+                                self._convert_word_to_pdf(output_word, result_pdf_dir)
 
                         logger.info(f"[默认模式] 成功处理 Word 文件 {word.name}，插入图片 1 张")
                         processed_successfully = True
@@ -218,6 +229,16 @@ class StampOverlayService:
                 else:
                     logger.warning(f"已无足够图片，无法处理 Word 文件 {word.name}")
 
+        # 安全检查：确保所有成功处理的Word文件都已转换为PDF
+        for word_file in result_word_files:
+            if word_file.exists():
+                # 检查PDF是否已存在
+                pdf_file = result_pdf_dir / f"{word_file.stem}_stamped.pdf"
+
+                if not pdf_file.exists():
+                    logger.info(f"【安全检查】重新生成 PDF 文件：{pdf_file}")
+                    self._convert_word_to_pdf(word_file, result_pdf_dir)
+
         return result_word_files
 
     def _get_current_config(self, filename: str, configs: dict) -> object:
@@ -229,11 +250,31 @@ class StampOverlayService:
             import collections
             Config = collections.namedtuple('Config', ['filename', 'image_files', 'insert_positions'])
             items = configs[filename]
-            return Config(
-                filename=filename,
-                image_files=[item['image'] for item in items],
-                insert_positions=[item['position'] for item in items]
-            )
+
+            # 处理用户输入-1的情况
+            # 当items是字符串"-1"或不包含image/position键的结构时，返回None使用默认模式
+            try:
+                # 验证items是否是一个包含image和position的字典列表
+                valid_items = []
+                for item in items:
+                    if isinstance(item, dict) and 'image' in item and 'position' in item:
+                        valid_items.append(item)
+                    else:
+                        # 包含无效项，直接使用默认模式
+                        return None
+
+                # 如果没有有效配置项，返回None
+                if not valid_items:
+                    return None
+
+                return Config(
+                    filename=filename,
+                    image_files=[item['image'] for item in valid_items],
+                    insert_positions=[item['position'] for item in valid_items]
+                )
+            except Exception:
+                # 当items不是预期的列表结构时，返回None使用默认模式
+                return None
         return None
 
     def _process_with_config(self, current_config: object, word: Path, output_word: Path,
