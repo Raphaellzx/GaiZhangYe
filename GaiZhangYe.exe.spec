@@ -3,14 +3,20 @@
 
 a = Analysis(
     ['GaiZhangYe\\core\\entrypoints\\start_service.py'],
-    pathex=[],
+    pathex=[r'D:\\Coding\\Python\\GaiZhangYe'],
     binaries=[],
     datas=[('GaiZhangYe/web/static', 'static'), ('GaiZhangYe/web/templates', 'templates')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # Exclude many large optional libraries to reduce bundle size.
+    # Keep pywin32, pymupdf (fitz) and pillow which are required by this project.
+    excludes=['PyQt5','PyQt6','PySide6','PySide2','matplotlib','numpy','scipy','pandas',
+              'sklearn','skimage','notebook','jupyter','jupyterlab','IPython','sphinx',
+              'pyarrow','numba','numexpr','plotly','bokeh','torch','tensorflow','cv2',
+              'opencv_python','pyqtgraph','tornado','zmq','qtpy','nbconvert',
+              'jupyter_client','ipykernel','jupyter_core','mpl_toolkits','xlrd','openpyxl'],
     noarchive=False,
     optimize=0,
 )
