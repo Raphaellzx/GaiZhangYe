@@ -131,31 +131,68 @@ class WordProcessor:
 
     def get_word_page_count(self, word_path: Path) -> int:
         """获取Word文件的页数"""
+        # 跳过Word的临时文件（以~$开头）
+        if word_path.name.startswith("~$"):
+            raise WordProcessError(f"临时文件，跳过获取页数：{word_path}")
+
         if not word_path.exists():
             raise FileNotFoundError(f"Word文件不存在：{word_path}")
-        if word_path.suffix not in [".docx", ".doc"]:
+
+        # 后缀比较使用不区分大小写的方式
+        if word_path.suffix.lower() not in [".docx", ".doc"]:
             raise WordProcessError(f"非Word文件：{word_path}")
 
         try:
             word_app = self._get_word_app()
-            # 使用完整的绝对路径字符串，避免编码问题
             abs_path = str(word_path.absolute())
-            # 尝试使用不同的参数打开文件
-            doc = word_app.Documents.Open(
-                FileName=abs_path,
-                ReadOnly=True,
-                Encoding=1252,  # windows-1252编码
-                Revert=True
-            )
+
+            # 以只读方式打开，避免弹窗和写锁
+            try:
+                doc = word_app.Documents.Open(FileName=abs_path, ReadOnly=True)
+            except Exception:
+                # 有些Word在打开时对参数敏感，重试更简单的调用
+                doc = word_app.Documents.Open(abs_path)
+
+            # 清理修订与注释，保证页数统计一致
+            try:
+                self._clean_doc(doc)
+            except Exception:
+                pass
+
+            # 尝试强制重排页面并更新域（在复杂文档中有时需要）
+            try:
+                try:
+                    doc.Repaginate()
+                except Exception:
+                    # 有的Word版本不提供 Repaginate，忽略
+                    pass
+                try:
+                    doc.Fields.Update()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
             page_count = doc.ComputeStatistics(2)  # 2=wdStatisticPages
-            doc.Close(SaveChanges=False)  # 只读模式打开，不保存变化
+            # 在极少数情况下返回0，尝试再次重排
+            if not page_count:
+                try:
+                    doc.Repaginate()
+                    page_count = doc.ComputeStatistics(2)
+                except Exception:
+                    pass
+
+            try:
+                doc.Close(SaveChanges=False)
+            except Exception:
+                pass
+
             logger.info(f"获取Word文件页数成功：{word_path} - {page_count}页")
-            return page_count
+            return int(page_count)
         except Exception as e:
             logger.error(f"获取Word文件页数失败：{word_path}", exc_info=True)
             # 尝试另一种方式：先将文件转换为PDF，然后通过PDF获取页数
             try:
-                from pathlib import Path
                 import tempfile
                 import pymupdf as fitz  # PyMuPDF
 
@@ -163,25 +200,28 @@ class WordProcessor:
                 with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
                     temp_pdf_path = tmp.name
 
-                # 转换为PDF
+                # 转换为PDF（word_to_pdf会检查原文件存在性）
                 self.word_to_pdf(word_path, Path(temp_pdf_path))
 
                 # 从PDF获取页数
-                with fitz.open(temp_pdf_path) as doc:
-                    page_count = doc.page_count
+                with fitz.open(temp_pdf_path) as pdf_doc:
+                    page_count = pdf_doc.page_count
 
                 # 删除临时文件
-                Path(temp_pdf_path).unlink()
+                try:
+                    Path(temp_pdf_path).unlink()
+                except Exception:
+                    pass
 
                 logger.info(f"通过PDF转换获取Word文件页数成功：{word_path} - {page_count}页")
-                return page_count
-            except Exception as e2:
+                return int(page_count)
+            except Exception:
                 logger.error(f"通过PDF转换获取页数也失败：{word_path}", exc_info=True)
                 raise WordProcessError(f"获取页数失败：{str(e)}") from e
 
-    def insert_image_to_word(self, word_path: Path, image_path: Path, image_location: str, output_path: Path) -> None:
+    def insert_image_to_word(self, word_path: Path, image_path: Path, image_location, output_path: Path) -> None:
         """向Word插入图片（盖章页覆盖核心）
-        :param image_location: 图片插入位置，可以是页码（数字字符串，如 '1'、'5'）或特殊值 'last_page'（最后一页）
+        :param image_location: 图片插入位置，支持数值页码，或字符串 'last'/'end' 表示最后一页
         """
         if not word_path.exists():
             raise FileNotFoundError(f"Word文件不存在：{word_path}")
@@ -195,97 +235,182 @@ class WordProcessor:
 
             doc = self._word_app.Documents.Open(str(word_path))
             doc.Activate()
-            selection = self._word_app.Selection
 
-            # 根据image_location参数定位插入位置
-            # 处理各种可能的输入类型
-            final_target_page = 1  # 默认第一页
-            use_last_page = False
-
+            # image_location expected to be an integer page number provided by frontend
             try:
-                image_location_str = str(image_location).strip()
+                page_num = int(image_location)
+            except Exception:
+                raise WordProcessError(f"image_location must be an integer page number, got: {image_location}")
 
-                logger.debug(f"解析图片插入位置: '{image_location_str}'")
-
-                # 先检查是否是最后一页的指示
-                if image_location_str in ['last_page', 'last'] or not image_location_str:
-                    # 定位到最后一页（物理页面末尾）
-                    # 2=wdStatisticPages - 计算文档总页数
-                    use_last_page = True
-                    final_target_page = self._word_app.ActiveDocument.ComputeStatistics(2)
-                    logger.debug(f"使用最后一页作为插入位置: {final_target_page}")
-
-                # 再检查是否是页码
-                elif image_location_str.isdigit():
-                    # 定位到指定页码
-                    final_target_page = int(image_location_str)
-                    # 确保页码不超过文档总页数
-                    max_pages = self._word_app.ActiveDocument.ComputeStatistics(2)
-                    final_target_page = min(final_target_page, max_pages)
-                    logger.debug(f"使用解析后的页码作为插入位置: {final_target_page}")
-
-                elif image_location_str.startswith('specific_page:'):
-                    # 解析格式 'specific_page:<页码>'
-                    page_num = int(image_location_str.split(':')[1])
-                    max_pages = self._word_app.ActiveDocument.ComputeStatistics(2)
-                    final_target_page = min(page_num, max_pages)
-                    logger.debug(f"使用特定页码格式作为插入位置: {final_target_page}")
-
-            except Exception as e:
-                # 如果无法解析位置，默认使用第一页而不是最后一页
-                logger.warning(f"无法解析图片插入位置：{image_location}，将使用第一页")
-                use_last_page = False
-                final_target_page = 1
-
-            # 执行实际的定位操作
-            # 尝试多种定位方式确保正确
+            # 计算目标页：根据文档页数进行边界修正
             try:
-                # 方式1: 使用GoTo定位
-                self._word_app.Selection.GoTo(
-                    What=1,  # 1=wdGoToPage
-                    Which=1,  # 1=wdGoToAbsolute
-                    Count=final_target_page
-                )
+                max_pages = doc.ComputeStatistics(2)
+            except Exception:
+                max_pages = None
 
-                # 方式2: 移动到页面顶部，确保在正确位置
-                self._word_app.Selection.HomeKey(Unit=6)  # wdStory = 6
-                if final_target_page > 1:
-                    for _ in range(1, final_target_page):
-                        self._word_app.Selection.NextPage()
-
-                logger.debug(f"成功定位到页面: {final_target_page}")
-
-            except Exception as e:
-                logger.warning(f"无法定位到指定页面 {final_target_page}，将使用第一页")
-                # 定位到第一页
-                self._word_app.Selection.HomeKey(Unit=6)  # wdStory = 6
-
-            # 在当前位置插入图片
-            shape = selection.InlineShapes.AddPicture(str(image_path)).ConvertToShape()
-
-            # 设置图片格式
-            shape.WrapFormat.Type = 3
-            shape.RelativeHorizontalPosition = 1
-            shape.RelativeVerticalPosition = 1
-            current_section = doc.ActiveWindow.Selection.Sections(1)
-
-            page_height = current_section.PageSetup.PageHeight
-            page_width = current_section.PageSetup.PageWidth
-
-            if(page_height>page_width):
-                shape.Width = page_width
-                shape.Height = page_height
+            if max_pages is not None:
+                final_target_page = max(1, min(page_num, max_pages))
             else:
-                shape.Width = page_height
-                shape.Height = page_width
-                shape.rotation=90
+                final_target_page = max(1, page_num)
 
-            shape.Left = -999995
-            shape.Top = -999995
+            logger.info(f"图片将插入的目标页: {final_target_page}")
 
-            doc.SaveAs(str(output_path))
-            doc.Close()
-            logger.info(f"图片插入Word成功：{image_path} → {output_path}")
+            # 使用 Range/GoTo 来定位到目标页的开头（更稳定，避免依赖 ActiveWindow.Selection）
+            rng = None
+            try:
+                if final_target_page is not None:
+                    try:
+                        rng = doc.GoTo(What=win32.wdGoToPage, Which=win32.wdGoToAbsolute, Count=final_target_page)
+                    except Exception:
+                        try:
+                            rng = doc.GoTo(1, 1, final_target_page)
+                        except Exception:
+                            rng = None
+                if rng is None:
+                    # 回退到文档末尾作为锚点
+                    rng = doc.Content
+                    try:
+                        rng.Collapse(Direction=win32.wdCollapseEnd)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"基于 Range 的定位失败，将使用文档末尾作为插入点：{e}")
+                rng = doc.Content
+                try:
+                    rng.Collapse(Direction=win32.wdCollapseEnd)
+                except Exception:
+                    pass
+
+            # 在定位 Range 上插入图片为 InlineShape（直接使用 Range 的 InlineShapes）
+            try:
+                # 如果GoTo返回的是Selection对象，尝试从中获取Range
+                try:
+                    # 一些Word版本会返回 Selection 而非 Range
+                    test_range = getattr(rng, 'Range', None)
+                    if test_range is not None:
+                        rng = test_range
+                except Exception:
+                    pass
+
+                inline_shapes = rng.InlineShapes
+                inline_shape = inline_shapes.AddPicture(str(image_path))
+
+                # 首选：将插入的 inline shape 转为浮于文字上的 Shape，并铺满整页
+                try:
+                    shp = inline_shape.ConvertToShape()
+
+                    # 禁止锁定纵横比以便铺满整页
+                    try:
+                        shp.LockAspectRatio = False
+                    except Exception:
+                        pass
+
+                    # 获取目标页的尺寸（优先使用 rng 的 section）
+                    current_section = None
+                    try:
+                        current_section = rng.Sections(1)
+                    except Exception:
+                        try:
+                            current_section = doc.Sections(doc.Sections.Count)
+                        except Exception:
+                            current_section = None
+
+                    if current_section is not None:
+                        page_height = current_section.PageSetup.PageHeight
+                        page_width = current_section.PageSetup.PageWidth
+                        # 设置图片格式（浮于文字上方并铺满整页，参考前端/用户配置）
+                        try:
+                            # 使用数值常量以避免依赖命名常量差异
+                            shp.WrapFormat.Type = 3
+                            shp.RelativeHorizontalPosition = 1
+                            shp.RelativeVerticalPosition = 1
+
+                            # 尝试使用当前窗口的 Selection 对应的 section
+                            try:
+                                current_section = doc.ActiveWindow.Selection.Sections(1)
+                            except Exception:
+                                current_section = current_section
+
+                            page_height = current_section.PageSetup.PageHeight
+                            page_width = current_section.PageSetup.PageWidth
+
+                            if page_height > page_width:
+                                shp.Width = page_width
+                                shp.Height = page_height
+                            else:
+                                shp.Width = page_height
+                                shp.Height = page_width
+                                try:
+                                    shp.Rotation = 90
+                                except Exception:
+                                    try:
+                                        shp.rotation = 90
+                                    except Exception:
+                                        pass
+
+                            # 将Left/Top设置为较大的负值，确保在页面左上角覆盖
+                            try:
+                                shp.Left = -999995
+                                shp.Top = -999995
+                            except Exception:
+                                pass
+
+                            try:
+                                shp.ZOrder(1)  # wdBringToFront = 1
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                    else:
+                        # 无法获取页设置时，回退为按比例缩放的 inline 插入
+                        try:
+                            if inline_shape.Width > 400:
+                                ratio = 400 / inline_shape.Width
+                                inline_shape.Width = 400
+                                inline_shape.Height = int(inline_shape.Height * ratio)
+                        except Exception:
+                            pass
+
+                except Exception as e:
+                    # 如果 ConvertToShape 或属性设置失败，回退为 inline 插入并按可用宽度缩放
+                    logger.warning(f"ConvertToShape 或浮动设置失败，回退到 inline 方式: {e}")
+                    try:
+                        current_section = None
+                        try:
+                            current_section = rng.Sections(1)
+                        except Exception:
+                            try:
+                                current_section = doc.Sections(doc.Sections.Count)
+                            except Exception:
+                                current_section = None
+
+                        if current_section is not None:
+                            page_height = current_section.PageSetup.PageHeight
+                            page_width = current_section.PageSetup.PageWidth
+                            left_margin = current_section.PageSetup.LeftMargin
+                            right_margin = current_section.PageSetup.RightMargin
+                            usable_width = max(1, page_width - left_margin - right_margin)
+                            try:
+                                if inline_shape.Width > usable_width:
+                                    ratio = usable_width / inline_shape.Width
+                                    inline_shape.Width = usable_width
+                                    inline_shape.Height = int(inline_shape.Height * ratio)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                # 保存并关闭文档
+                doc.SaveAs(str(output_path))
+                doc.Close()
+                logger.info(f"图片插入Word成功（Range方式，浮动/覆盖尝试）：{image_path} → {output_path}")
+            except Exception as e:
+                logger.error(f"通过 Range 插入图片失败：{e}", exc_info=True)
+                try:
+                    doc.Close(SaveChanges=False)
+                except Exception:
+                    pass
+                raise
         except Exception as e:
             logger.error(f"插入图片失败：{word_path}", exc_info=True)
             raise WordProcessError(f"插入失败：{str(e)}") from e

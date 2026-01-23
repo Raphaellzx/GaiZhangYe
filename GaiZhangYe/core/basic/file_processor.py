@@ -6,8 +6,35 @@ from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.models.exceptions import FileProcessError
+import re
+from typing import Union
 
 logger = get_logger(__name__)
+
+
+def windows_natural_sort_key(filename: Union[str, Path]) -> List:
+    """
+    将文件名转换为 Windows 资源管理器风格的排序键
+    可用于 sorted(..., key=windows_natural_sort_key)
+    """
+    if isinstance(filename, Path):
+        filename = filename.name
+
+    parts = []
+    for text in re.split(r'(\d+)', str(filename)):
+        if text.isdigit():
+            parts.append(int(text))
+        else:
+            parts.append(text.lower())
+    return parts
+
+
+def sort_files_windows_style(files: List[Union[str, Path]]) -> List[Union[str, Path]]:
+    return sorted(files, key=windows_natural_sort_key)
+
+
+def sort_dicts_by_name_windows_style(dicts: List[dict], name_key: str = "name") -> List[dict]:
+    return sorted(dicts, key=lambda d: windows_natural_sort_key(d.get(name_key, "")))
 
 
 class FileProcessor:

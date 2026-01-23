@@ -8,8 +8,9 @@ core层数据沟通模块
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
-from GaiZhangYe.core.basic.file_manager import FileManager
+from GaiZhangYe.core.basic.file_manager import get_file_manager
 from GaiZhangYe.core.basic.file_processor import FileProcessor
+from GaiZhangYe.core.basic.file_processor import windows_natural_sort_key
 
 
 class DataCommunicationService:
@@ -20,8 +21,8 @@ class DataCommunicationService:
         self.func1_data_file = Path(__file__).parent.parent / 'business_data' / 'func1' / '.temp' / 'target_pages.json'
         self.func2_data_file = Path(__file__).parent.parent / 'business_data' / 'func2' / '.temp' / 'stamp_config.json'
         
-        # 创建文件管理器和处理器实例
-        self.file_manager = FileManager()
+        # 创建文件管理器和处理器实例（使用单例）
+        self.file_manager = get_file_manager()
         self.file_processor = FileProcessor()
     
     def get_func1_data(self) -> Dict[str, Any]:
@@ -68,9 +69,18 @@ class DataCommunicationService:
             return False
     
     def scan_business_data(self) -> bool:
-        """扫描business_data目录并生成默认数据"""
+        """扫描business_data目录并生成默认数据（调用具体子方法）"""
         try:
-            # 扫描func1目录，生成默认target_pages
+            ok1 = self.scan_func1()
+            ok2 = self.scan_func2()
+            return bool(ok1 and ok2)
+        except Exception as e:
+            print(f"扫描business_data目录失败: {str(e)}")
+            return False
+
+    def scan_func1(self) -> bool:
+        """扫描 func1 目录并生成 target_pages.json"""
+        try:
             func1_word_dir = self.file_manager.get_func1_dir('nostamped_word')
             word_files = self.file_processor.list_files(func1_word_dir, ['.docx', '.doc'])
 
@@ -79,8 +89,6 @@ class DataCommunicationService:
 
             func1_data = {}
             for word_file in word_files:
-                # 默认提取所有页面
-                # 获取Word文件的实际页数
                 try:
                     page_count = wp.get_word_page_count(word_file)
                 except Exception as e:
@@ -88,75 +96,66 @@ class DataCommunicationService:
                     page_count = 0
 
                 func1_data[word_file.stem] = {
-                    'pages': [],  # 选择的页面
-                    'total_pages': page_count  # 总页数
+                    'pages': [],
+                    'total_pages': page_count
                 }
-            
-            # 保存func1数据
+
             self.save_func1_data(func1_data)
             print(f"扫描到 {len(word_files)} 个Word文件，已生成func1默认数据")
-            
-            # 扫描func2目录，生成默认stamp_config
+            return True
+        except Exception as e:
+            print(f"扫描func1失败: {str(e)}")
+            return False
+
+    def scan_func2(self) -> bool:
+        """扫描 func2 目录并生成 stamp_config.json"""
+        try:
             func2_target_dir = self.file_manager.get_func2_dir('target_files')
             func2_image_dir = self.file_manager.get_func2_dir('images')
-            
+
             target_files = self.file_processor.list_files(func2_target_dir, ['.docx'])
             image_files = self.file_processor.list_files(func2_image_dir, ['.png', '.jpg', '.jpeg'])
-            
-            # 使用Windows资源管理器风格的排序函数
-            def natural_sort_key(s):
-                """自然排序键生成器，模拟Windows资源管理器排序"""
-                import re
-                return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
 
-            # 对文件和图片进行排序
-            sorted_target_files = sorted(target_files, key=lambda f: natural_sort_key(f.name))
-            sorted_image_files = sorted(image_files, key=lambda f: natural_sort_key(f.name))
+            # 对文件和图片进行排序 (使用Windows自然排序)
+            sorted_target_files = sorted(target_files, key=lambda f: windows_natural_sort_key(f.name))
+            sorted_image_files = sorted(image_files, key=lambda f: windows_natural_sort_key(f.name))
 
             func2_config = {}
 
-            # 导入WordProcessor获取页数
             from GaiZhangYe.core.basic.word_processor import WordProcessor
             wp = WordProcessor()
 
             for i, target_file in enumerate(sorted_target_files):
-                # 为每个文档分配对应的图片（按顺序一一对应）
                 assigned_images = [sorted_image_files[i].name] if i < len(sorted_image_files) else []
 
-                # 获取文件总页数
                 try:
                     total_pages = wp.get_word_page_count(target_file)
-                    # 如果页数获取失败或为0，默认设为1
                     total_pages = total_pages if total_pages > 0 else 1
                 except Exception as e:
                     print(f"获取文件页数失败 {target_file.name}: {e}")
                     total_pages = 1
 
-                # 默认配置：每个文件对应一张图片，插入到最后一页（使用实际总页数的数字）
                 func2_config[target_file.name] = {
-                    'total_pages': total_pages,  # 保存总页数字段
-                    'images': assigned_images,    # 按顺序一一对应
+                    'total_pages': total_pages,
+                    'images': assigned_images,
                     'positions': [{
-                        'page': total_pages,       # 使用实际总页数代替 'last_page'
+                        'page': total_pages,
                         'x': 100,
                         'y': 100
-                    } for _ in assigned_images]  # 每个图片对应一个位置
+                    } for _ in assigned_images]
                 }
-            
-            # 生成新的双列表结构数据
+
             func2_new_data = {
-                "target_files": [f.name for f in sorted_target_files],  # 所有Word文件列表
-                "images": [f.name for f in sorted_image_files],        # 所有图片文件列表
-                "config": func2_config  # 保持配置结构
+                "target_files": [f.name for f in sorted_target_files],
+                "images": [f.name for f in sorted_image_files],
+                "config": func2_config
             }
 
-            # 保存func2数据
             self.save_func2_data(func2_new_data)
             print(f"扫描到 {len(target_files)} 个目标文件和 {len(image_files)} 个图片文件，已生成func2默认数据")
-            
             return True
         except Exception as e:
-            print(f"扫描business_data目录失败: {str(e)}")
+            print(f"扫描func2失败: {str(e)}")
             return False
     
     def auto_generate_data(self) -> bool:

@@ -68,19 +68,7 @@
             transform: translateX(5px);
         }
 
-        .directory-info {
-            background-color: white;
-            padding: 24px;
-            border-radius: 8px;
-            border-left: 4px solid var(--primary-color);
-            margin-top: 30px;
-            box-shadow: var(--shadow-sm);
-            transition: var(--transition);
-        }
 
-        .directory-info:hover {
-            box-shadow: var(--shadow-md);
-        }
     </style>
 </head>
 <body>
@@ -88,15 +76,12 @@
         <header>
             <h1>盖章页工具</h1>
             <p>快速、高效的盖章页处理解决方案</p>
-            <div style="margin-top: 20px; display: flex; gap: 10px;">
-                <button onclick="refreshPage()" style="background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                    刷新页面数据
-                </button>
-                <button onclick="shutdownServer()" style="background-color: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                    终止服务并关闭页面
-                </button>
+            <div class="top-actions mt-15">
+                <button class="btn btn-danger" onclick="shutdownServer()">终止服务</button>
             </div>
         </header>
+
+        <h1>盖章页工具</h1>
 
         <div class="features-container">
             <!-- 准备盖章页 -->
@@ -121,76 +106,32 @@
             </div>
         </div>
 
-        <!-- 目录快捷访问按钮 -->
-        <div class="directory-info">
-            <h3>目录快捷访问</h3>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-                {% for dir_name in ['Nostamped_Word', 'Nostamped_PDF', 'Stamped_Pages', 'Images', 'TargetFiles', 'Result_Word', 'Result_PDF'] %}
-                    <button class="btn" onclick="openDirectory('{{ dir_name }}')" style="padding: 8px 16px; font-size: 14px; background-color: var(--primary-color); color: white; border: none; border-radius: var(--border-radius); cursor: pointer; transition: var(--transition);">
-                        {{ dir_name }}
-                    </button>
-                {% endfor %}
-            </div>
-            <h3>目录信息</h3>
-            <div id="directories"></div>
+        <h1>诚信核查工具</h1>
+        <div class="features-container">
+                <!-- 诚信核查工具 -->
+                <div class="feature-card">
+                    <h2>诚信核查工具</h2>
+                    <p>提供一键式诚信核查功能，帮助用户快速进行一部分诚信核查。</p>
+                    <button class="arrow-btn" onclick="window.location.href='/page/integrity-check'">➔</button>
+                </div>
         </div>
-        <script>
-            // 添加目录打开功能
-            function openDirectory(dirName) {
-                fetch(`/api/open-directory?dir_name=${encodeURIComponent(dirName)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert('目录已打开');
-                        } else {
-                            alert('打开目录失败: ' + data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('打开目录失败');
-                    });
-            }
-        </script>
 
         <footer>
-            <p>盖章页工具 © 2025</p>
+            <p>盖章页工具 © 2025-2026</p>
         </footer>
 
         <script>
-            // 刷新页面数据
-            function refreshPage() {
-                if (confirm('确定要刷新页面数据吗？')) {
-                    fetch('/api/refresh-data', {
-                        method: 'POST'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert('数据刷新完成，页面将重新加载');
-                            // 重新加载当前页面
-                            window.location.reload();
-                        } else {
-                            alert('数据刷新失败: ' + data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('数据刷新失败');
-                    });
-                }
-            }
 
             // 终止服务并关闭页面
             function shutdownServer() {
-                if (confirm('确定要终止服务并关闭页面吗？')) {
+                if (confirm('确定要终止服务吗？')) {
                     fetch('/api/shutdown', {
                         method: 'POST'
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('服务已终止，页面将关闭');
+                            alert('服务已终止，请关闭页面');
                             // 关闭当前页面
                             window.close();
                         } else {
@@ -214,15 +155,14 @@
                 const directoriesDiv = document.getElementById('directories');
                 for (const [key, path] of Object.entries(data)) {
                     const div = document.createElement('div');
-                    div.style.marginBottom = '5px';
-                    div.style.fontFamily = 'monospace';
-                    div.innerHTML = `<strong>${key}:</strong> ${path}`;
-                    directoriesDiv.appendChild(div);
+                        div.className = 'dir-info-line';
+                        div.innerHTML = `<strong>${key}:</strong> ${path}`;
+                        directoriesDiv.appendChild(div);
                 }
             })
             .catch(error => {
                 console.error('获取目录信息失败:', error);
-                directoriesDiv.innerHTML = '<p style="color: red;">获取目录信息失败</p>';
+                directoriesDiv.innerHTML = '<p class="result-error">获取目录信息失败</p>';
             });
     </script>
 </body>

@@ -127,11 +127,8 @@ def main():
 
     # 尝试杀死旧进程
     kill_old_processes()
-    print()
 
     start_service()
-
-    print()
 
 if __name__ == "__main__":
     main()

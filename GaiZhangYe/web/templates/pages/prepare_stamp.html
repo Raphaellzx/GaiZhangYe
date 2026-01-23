@@ -5,140 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>准备盖章页 - 盖章页工具</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/htsc-theme.css') }}">
-    <style>
-        /* 目录操作区 */
-        .directory-section {
-            margin-bottom: 30px;
-        }
-
-        .dir-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-
-        /* 目录按钮样式 */
-        .dir-btn {
-            padding: 8px 16px;
-            font-size: 14px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .dir-btn:hover {
-            background-color: var(--primary-dark);
-        }
-
-        /* 文件列表区 */
-        .file-list {
-            margin-top: 30px;
-        }
-
-        .file-item {
-            margin-bottom: 20px;
-            padding: 20px;
-            background-color: var(--light-gray);
-            border-radius: var(--border-radius);
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .file-name-column {
-            flex: 1;
-            font-weight: bold;
-        }
-
-        .page-count-column {
-            flex: 0 0 150px;
-            color: #666;
-        }
-
-        .page-input-column {
-            flex: 1;
-        }
-
-        .page-range {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        /* 结果区 */
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: var(--border-radius);
-            font-weight: bold;
-        }
-
-        .result.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .result.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>准备盖章页</h1>
-            <div style="display: flex; gap: 10px;">
+            <div class="top-actions">
                 <button class="back-btn" onclick="window.location.href='/'">返回首页</button>
-                <button onclick="refreshPage()" style="background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                    刷新页面数据
-                </button>
-                <button onclick="shutdownServer()" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                    终止服务并关闭页面
-                </button>
+                <button class="btn btn-danger" onclick="shutdownServer()">终止服务</button>
             </div>
         </header>
 
         <div class="content">
+            <!-- 使用说明（操作顺序） -->
+                <div class="instructions instruction-box">
+                <h3>使用教程（操作顺序）</h3>
+                <ol>
+                    <li>页面将自动列出；在每个文件的输入框中填写要提取的页码范围，例如 <code>1,3,5-7</code>（支持单页/逗号/区间）。</li>
+                </ol>
+            </div>
+
             <!-- 目录操作区 -->
             <div class="directory-section">
-                <h3>目录操作</h3>
-                <div class="dir-buttons">
-                    {% for folder in folders %}
-                        <button class="dir-btn" onclick="openDirectory('{{ folder }}')">{{ folder }}</button>
-                    {% endfor %}
+                <h3>选择Word文件目录</h3>
+                <div class="folder-picker-container">
+                    <div class="folder-input-group">
+                        <input type="text" id="folderPath" placeholder="例如：D:\myfiles\documents" class="folder-input">
+                        <button class="btn btn-success" onclick="scanFolder()">扫描文件</button>
+                    </div>
+                    <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>正在扫描文件中...</p>
+                    </div>
+                    <div id="scanStatus" class="scan-status"></div>
+                </div>
+
+                <h3 style="margin-top: 30px;">输出位置设置</h3>
+                <div class="folder-picker-container">
+                    <div class="folder-input-group">
+                        <input type="text" id="outputPath" placeholder="输出PDF位置（默认为用户文档文件夹）" class="folder-input">
+                        <button class="btn" onclick="resetOutputPath()">使用默认</button>
+                    </div>
                 </div>
             </div>
 
             <!-- 文件列表区 -->
             <div class="file-list">
-                <h3>Nostamped_Word 目录文件</h3>
-
-                {% if word_files %}
-                    <form id="prepareForm">
-                        {% for file in word_files %}
-                            <div class="file-item">
-                                <div class="file-name-column">{{ file.name }}</div>
-                                <div class="page-count-column">共 {{ file.page_count if file.page_count else '未知' }} 页</div>
-                                <div class="page-range">
-                                    <input type="text" id="page-{{ loop.index }}" name="{{ file.stem }}" value="{{ file.page_count if file.page_count else '' }}" placeholder="如：1,3,5-7" style="padding: 8px; width: 250px;">
-                                    <button type="button" onclick="convertRange('page-{{ loop.index }}')" style="padding: 8px;">保存</button>
-                                    <span id="parsed-{{ loop.index }}" style="color: #666; font-size: 14px;"></span>
-                                </div>
-                            </div>
-                        {% endfor %}
-
-                        <button type="button" class="btn" onclick="submitForm()">开始提取</button>
-                    </form>
-                {% else %}
-                    <p>目录中没有Word文件</p>
-                {% endif %}
+                <h3>目录文件及设置</h3>
+                <div id="fileListContainer">
+                    <p class="text-muted">请先选择文件夹并扫描</p>
+                </div>
             </div>
 
             <!-- 结果区 -->
@@ -146,23 +62,243 @@
         </div>
 
         <footer>
-            <p>盖章页工具 © 2025</p>
+            <p>盖章页工具 © 2025-2026</p>
         </footer>
     </div>
 
     <script>
-        // 打开目录
-        function openDirectory(folderName) {
-            // 调用API打开目录，不显示提示
-            fetch(`/api/open-directory?dir_name=${folderName}`)
+        let scannedFiles = [];
+        let outputPath = ''; // 存储选择的输出路径
+
+        // 初始化输出路径为用户文档文件夹，并处理后端会话切换（用于清理缓存）
+        window.addEventListener('load', function() {
+            // 检查后端会话ID，若变化则清理本地缓存
+            fetch('/api/session-id')
+            .then(r => r.json())
+            .then(data => {
+                try {
+                    const serverSession = data.session_id;
+                    const localSession = localStorage.getItem('app_session_id');
+                    if (!localSession || localSession !== serverSession) {
+                        // 清理与应用相关的缓存键（保留其它站点/域的localStorage）
+                        const keysToClear = [
+                            'prepare_output_path',
+                            'stamp_overlay_result_word_path',
+                            'stamp_overlay_result_pdf_path',
+                            'word_to_pdf_word_dir',
+                            'word_to_pdf_pdf_dir',
+                            'stamp_overlay_config'
+                        ];
+                        keysToClear.forEach(k => localStorage.removeItem(k));
+                        localStorage.setItem('app_session_id', serverSession);
+                    }
+                } catch (e) {
+                    console.warn('session check failed', e);
+                }
+
+                // 从缓存或服务器获取默认输出路径
+                const cached = localStorage.getItem('prepare_output_path');
+                if (cached) {
+                    outputPath = cached;
+                    document.getElementById('outputPath').value = outputPath;
+                    return;
+                }
+
+                fetch('/api/get-default-output-path', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
                 .then(response => response.json())
                 .then(data => {
-                    // 不显示任何提示
+                    if (data.success && data.path) {
+                        outputPath = data.path;
+                        document.getElementById('outputPath').value = outputPath;
+                    }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('打开目录失败');
+                    console.error('获取默认输出路径失败:', error);
                 });
+            })
+            .catch(err => {
+                console.error('session check failed', err);
+            });
+        });
+
+        // 重置输出路径为默认
+        function resetOutputPath() {
+            fetch('/api/get-default-output-path', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.path) {
+                    outputPath = data.path;
+                    document.getElementById('outputPath').value = outputPath;
+                    localStorage.setItem('prepare_output_path', outputPath);
+                }
+            })
+            .catch(error => {
+                console.error('获取默认输出路径失败:', error);
+            });
+        }
+
+        // 浏览输出文件夹
+        function browseOutputFolder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.multiple = true;
+            input.style.display = 'none';
+            document.body.appendChild(input);
+            
+            input.onchange = (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    let folderPath = '';
+                    
+                    if (file.path) {
+                        // Chrome/Edge/Firefox 支持path属性
+                        const lastIndex = file.path.lastIndexOf(file.name);
+                        folderPath = file.path.substring(0, lastIndex).trim();
+                        outputPath = folderPath;
+                        document.getElementById('outputPath').value = outputPath;
+                        localStorage.setItem('prepare_output_path', outputPath);
+                    } else if (file.webkitRelativePath) {
+                        // 浏览器不支持完整路径，提示用户手动输入
+                        const dirName = file.webkitRelativePath.split('/')[0];
+                        const manualPath = prompt('您的浏览器无法自动获取完整路径。\\n\\n检测到文件夹名: ' + dirName + '\\n\\n请输入完整的输出文件夹路径（例如：D:\\\\Documents）:', dirName);
+                        
+                        if (manualPath) {
+                            outputPath = manualPath;
+                            document.getElementById('outputPath').value = outputPath;
+                            localStorage.setItem('prepare_output_path', outputPath);
+                        }
+                    }
+                }
+                document.body.removeChild(input);
+            };
+            
+            input.click();
+        }
+
+        // 浏览文件夹
+        function browseFolder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.multiple = true;
+            input.style.display = 'none';
+            document.body.appendChild(input);
+            
+            input.onchange = (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    let folderPath = '';
+                    
+                    if (file.path) {
+                        // Chrome/Edge/Firefox 支持path属性
+                        const lastIndex = file.path.lastIndexOf(file.name);
+                        folderPath = file.path.substring(0, lastIndex).trim();
+                        document.getElementById('folderPath').value = folderPath;
+                    } else if (file.webkitRelativePath) {
+                        // 浏览器不支持完整路径，提示用户手动输入
+                        const dirName = file.webkitRelativePath.split('/')[0];
+                        const manualPath = prompt('您的浏览器无法自动获取完整路径。\\n\\n检测到文件夹名: ' + dirName + '\\n\\n请输入完整的Word文件夹路径（例如：D:\\\\data\\\\Word）:', dirName);
+                        
+                        if (manualPath) {
+                            document.getElementById('folderPath').value = manualPath;
+                        }
+                    }
+                }
+                document.body.removeChild(input);
+            };
+            
+            input.click();
+        }
+
+        // 扫描文件夹
+        async function scanFolder() {
+            const folderPath = document.getElementById('folderPath').value.trim();
+            const statusDiv = document.getElementById('scanStatus');
+            const spinner = document.getElementById('loadingSpinner');
+
+            if (!folderPath) {
+                statusDiv.className = 'scan-status error';
+                statusDiv.textContent = '请输入文件夹路径';
+                return;
+            }
+
+            // 显示加载spinner
+            spinner.style.display = 'flex';
+            statusDiv.textContent = '';
+
+            try {
+                const response = await fetch('/api/scan-folder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ path: folderPath })
+                });
+
+                const data = await response.json();
+                spinner.style.display = 'none';
+
+                if (data.success) {
+                    scannedFiles = data.files;
+                    statusDiv.className = 'scan-status success';
+                    statusDiv.textContent = `成功扫描到 ${scannedFiles.length} 个Word文件`;
+                    populateFileList(scannedFiles);
+                } else {
+                    statusDiv.className = 'scan-status error';
+                    statusDiv.textContent = '扫描失败: ' + data.error;
+                    document.getElementById('fileListContainer').innerHTML = '<p class="text-muted">扫描失败</p>';
+                }
+            } catch (error) {
+                spinner.style.display = 'none';
+                statusDiv.className = 'scan-status error';
+                statusDiv.textContent = '扫描出错: ' + error.message;
+                document.getElementById('fileListContainer').innerHTML = '<p class="text-muted">扫描出错</p>';
+            }
+        }
+
+        // 动态生成文件列表
+        function populateFileList(files) {
+            const container = document.getElementById('fileListContainer');
+
+            if (files.length === 0) {
+                container.innerHTML = '<p class="text-muted">该文件夹中没有Word文件</p>';
+                return;
+            }
+
+            let html = '<form id="prepareForm">';
+            files.forEach((file, index) => {
+                // 默认选择最后一页
+                const defaultPageValue = file.page_count || '1';
+                html += `
+                    <div class="file-item">
+                        <div class="file-name-column">${file.name}</div>
+                        <div class="page-count-column">共 ${file.page_count || '未知'} 页</div>
+                        <div class="page-range">
+                            <input type="text" id="page-${index}" name="${file.stem}" placeholder="如：1,3,5-7" class="page-input" value="${defaultPageValue}">
+                            <button type="button" class="save-btn" onclick="convertRange('page-${index}')">保存</button>
+                            <span id="parsed-${index}" class="parsed-text"></span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '<button type="button" class="btn btn-success" style="margin-top: 20px;" onclick="submitForm()">开始提取</button></form>';
+            container.innerHTML = html;
+            
+            // 自动保存所有文件的页码范围
+            files.forEach((file, index) => {
+                convertRange(`page-${index}`);
+            });
         }
 
         // 解析页面范围字符串为数组
@@ -213,6 +349,14 @@
             const targetPages = {};
             const resultDiv = document.getElementById('result');
 
+            // 验证输出路径
+            const outputPathValue = document.getElementById('outputPath').value.trim();
+            if (!outputPathValue) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '请选择输出路径';
+                return;
+            }
+
             // 解析表单数据
             for (const [key, value] of formData.entries()) {
                 if (value.trim()) {
@@ -229,16 +373,28 @@
                 return;
             }
 
+            // 显示加载spinner
+            document.getElementById('loadingSpinner').style.display = 'flex';
+
             // 发送请求到API
+            // 显示准备中的文本信息，类似 stamp_overlay 页面
+            resultDiv.className = 'result-info';
+            resultDiv.textContent = '正在准备中...';
             fetch('/api/prepare-stamp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(targetPages)
+                body: JSON.stringify({
+                    target_pages: targetPages,
+                    output_path: outputPathValue,
+                    // 将当前选择的Word目录一并传给后端（如果用户指定）
+                    word_dir: document.getElementById('folderPath').value.trim() || undefined
+                })
             })
             .then(response => response.json())
             .then(data => {
+                document.getElementById('loadingSpinner').style.display = 'none';
                 if (data.success) {
                     resultDiv.className = 'result success';
                     resultDiv.textContent = '提取完成！已生成文件：' + data.files.join(', ');
@@ -248,33 +404,11 @@
                 }
             })
             .catch(error => {
+                document.getElementById('loadingSpinner').style.display = 'none';
                 console.error('Error:', error);
                 resultDiv.className = 'result error';
                 resultDiv.textContent = '提取失败: ' + error.message;
             });
-        }
-
-        // 刷新页面数据
-        function refreshPage() {
-            if (confirm('确定要刷新页面数据吗？')) {
-                fetch('/api/refresh-data', {
-                    method: 'POST'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('数据刷新完成，页面将重新加载');
-                        // 重新加载当前页面
-                        window.location.reload();
-                    } else {
-                        alert('数据刷新失败: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('数据刷新失败');
-                });
-            }
         }
 
         // 终止服务并关闭页面
@@ -286,7 +420,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('服务已终止，页面将关闭');
+                        alert('服务已终止，请关闭页面');
                         // 关闭当前页面
                         window.close();
                     } else {

@@ -2,7 +2,8 @@
 from pathlib import Path
 from typing import Optional, List
 from GaiZhangYe.utils.logger import get_logger
-from GaiZhangYe.core.basic.file_manager import FileManager
+from GaiZhangYe.core.basic.file_processor import windows_natural_sort_key
+from GaiZhangYe.core.basic.file_manager import get_file_manager
 from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.basic.pdf_processor import PdfProcessor
 from GaiZhangYe.core.basic.file_processor import FileProcessor
@@ -17,12 +18,12 @@ logger = get_logger(__name__)
 class StampPrepareService:
     """功能1：准备盖章页（整合core所有相关模块）"""
     def __init__(self):
-        self.file_manager = FileManager()
+        self.file_manager = get_file_manager()
         self.word_processor = WordProcessor()
         self.pdf_processor = PdfProcessor()
         self.file_processor = FileProcessor()
 
-    def run(self, target_pages: Optional[dict[str, list[int]]] = None, word_dir: Optional[Path] = None) -> list[Path]:
+    def run(self, target_pages: Optional[dict[str, list[int]]] = None, word_dir: Optional[Path] = None, output_dir: Optional[Path] = None) -> list[Path]:
         # 如果没有传入target_pages，从数据文件中读取
         if target_pages is None:
             target_pages = get_data_service().get_func1_data()
@@ -31,18 +32,25 @@ class StampPrepareService:
             raise BusinessError("没有找到要提取的页面配置数据")
         """
         :param target_pages: 要提取的页面字典，键为Word文件名，值为页面列表
+        :param word_dir: 输入Word文件目录（可选）
+        :param output_dir: 输出PDF目录（可选，默认为Stamped_Pages）
         """
         """
         执行功能1流程：
         1. 读取Nostamped_Word目录的Word文件 → 转PDF到Nostamped_PDF
-        2. 从PDF中提取指定页面 → 保存到Stamped_Pages
+        2. 从PDF中提取指定页面 → 保存到Stamped_Pages或自定义输出目录
         """
         logger.info("开始执行【功能1：准备盖章页】")
         try:
             # 1. 获取功能1目录（优先用传入的word_dir，否则用默认目录）
             nostamped_word_dir = word_dir or self.file_manager.get_func1_dir("nostamped_word")
             nostamped_pdf_dir = self.file_manager.get_func1_dir("nostamped_pdf")
-            stamped_pages_dir = self.file_manager.get_func1_dir("stamped_pages")
+            stamped_pages_dir = output_dir or self.file_manager.get_func1_dir("stamped_pages")
+
+            # 如果输出目录不存在，创建它
+            if isinstance(stamped_pages_dir, str):
+                stamped_pages_dir = Path(stamped_pages_dir)
+            stamped_pages_dir.mkdir(parents=True, exist_ok=True)
 
             # 获取Temp目录，如果不存在则创建
             temp_dir = self.file_manager.get_func1_dir("temp")
@@ -56,8 +64,8 @@ class StampPrepareService:
             # 3. 为每个Word文件直接转换指定页面为PDF，并合并为一个文件
             merged_pdf = fitz.open()
 
-            # 按Word文件名排序
-            sorted_word_files = sorted(word_files, key=lambda x: x.name)
+            # 按Word文件名排序 (Windows自然排序)
+            sorted_word_files = sorted(word_files, key=lambda x: windows_natural_sort_key(x.name))
 
             for word_file in sorted_word_files:
                 word_filename = word_file.stem

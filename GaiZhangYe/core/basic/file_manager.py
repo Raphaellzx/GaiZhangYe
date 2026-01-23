@@ -67,3 +67,18 @@ class FileManager:
             if file.is_file():
                 file.unlink()
                 logger.debug(f"清理过期文件：{file}")
+
+
+# 模块级单例
+_file_manager: Optional[FileManager] = None
+
+
+def get_file_manager(root_dir: Optional[Path] = None) -> FileManager:
+    """返回模块级单例的 FileManager 实例，避免重复初始化目录和重复日志。"""
+    global _file_manager
+    if _file_manager is None:
+        if root_dir is not None:
+            _file_manager = FileManager(root_dir=root_dir)
+        else:
+            _file_manager = FileManager()
+    return _file_manager

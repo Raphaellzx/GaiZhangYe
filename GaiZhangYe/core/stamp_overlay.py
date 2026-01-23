@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
-from GaiZhangYe.core.basic.file_manager import FileManager
+from GaiZhangYe.core.basic.file_processor import windows_natural_sort_key
+from GaiZhangYe.core.basic.file_manager import get_file_manager
 from GaiZhangYe.core.basic.file_processor import FileProcessor
 from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.basic.pdf_processor import PdfProcessor
@@ -17,20 +18,11 @@ from GaiZhangYe.core.data_communication import get_data_service
 logger = get_logger(__name__)
 
 
-def windows_natural_sort_key(filename):
-    """与FuGai.py相同的自然排序实现"""
-    import re
-
-    s = filename.name
-    return [int(text) if text.isdigit() else text.lower()
-            for text in re.split(r'(\d+)', s)]
-
-
 class StampOverlayService:
     """盖章页覆盖服务"""
 
     def __init__(self):
-        self.file_manager = FileManager()
+        self.file_manager = get_file_manager()
         self.file_processor = FileProcessor()
         self.word_processor = WordProcessor()
         self.pdf_processor = PdfProcessor()
@@ -46,31 +38,36 @@ class StampOverlayService:
         return self.pdf_processor.extract_images(stamp_file, output_dir)
 
     def run(self, target_word_dir: Path = None,
-            image_width: int = None, image_files: List[Path] = None, configs=None) -> List[Path]:
+            image_width: int = None, image_files: List[Path] = None, configs=None,
+            result_word_dir: Path = None, result_pdf_dir: Path = None) -> List[Path]:
         """
         执行功能2流程：
         1. 缩放图片后插入到目标 Word 文件
         2. 生成最终 Word/PDF
-        :param stamp_file: 盖章后的PDF或图片文件
         :param target_word_dir: 目标Word文件目录
         :param image_width: 图片缩放宽度（默认配置中的默认值）
         :param image_files: 盖章图片文件列表，与Word文件一对一匹配
+        :param configs: 配置字典
+        :param result_word_dir: 输出Word文件目录（可选）
+        :param result_pdf_dir: 输出PDF文件目录（可选）
         :return: 生成的Word文件路径列表
         """
         logger.info("开始执行【功能2：盖章页覆盖】")
         try:
             # 1. 初始化目录
-            images_dir, result_word_dir, result_pdf_dir, target_word_dir = self._init_directories(target_word_dir)
+            images_dir, final_result_word_dir, final_result_pdf_dir, target_word_dir = self._init_directories(
+                target_word_dir, result_word_dir, result_pdf_dir)
 
             # 2. 验证并准备图片文件
             # 如果没有提供configs，才需要验证image_files
             # configs 可能是 None 或者 空字典 {}
-            if configs is None or (isinstance(configs, dict) and len(configs) == 0):
-                # 确保在没有配置时，image_files 非空且已验证
+            has_valid_config = configs and isinstance(configs, dict) and len(configs) > 0
+            
+            if not has_valid_config:
+                # 只在没有有效配置时验证image_files
                 self._validate_images(image_files)
-
-            # 另外，如果有配置但image_files是None，不需要验证
-            # 因为配置模式会从配置中获取图片
+            else:
+                logger.info("使用UI配置模式，无需提供image_files")
 
             # 3. 获取并处理目标Word文件
             word_files = self._get_target_word_files(target_word_dir)
@@ -87,7 +84,7 @@ class StampOverlayService:
 
             # 5. 批量插入图片并转换为PDF
             result_word_files = self._batch_insert_images_and_convert(
-                sorted_word_files, images_dir, result_word_dir, result_pdf_dir, image_width, configs, sorted_images)
+                sorted_word_files, images_dir, final_result_word_dir, final_result_pdf_dir, image_width, configs, sorted_images)
 
             logger.info(f"【功能2】执行完成，成功处理{len(result_word_files)}个Word文件")
             return result_word_files
@@ -95,13 +92,24 @@ class StampOverlayService:
             logger.error("【功能2】执行失败", exc_info=True)
             raise BusinessError(f"盖章页覆盖失败：{str(e)}") from e
 
-    def _init_directories(self, target_word_dir: Path) -> tuple:
-        """初始化功能2所需的目录"""
+    def _init_directories(self, target_word_dir: Path = None, result_word_dir: Path = None, result_pdf_dir: Path = None) -> tuple:
+        """初始化功能2所需的目录
+        :param target_word_dir: 目标Word文件目录
+        :param result_word_dir: 自定义输出Word目录
+        :param result_pdf_dir: 自定义输出PDF目录
+        """
         images_dir = self.file_manager.get_func2_dir("images")
-        result_word_dir = self.file_manager.get_func2_dir("result_word")
-        result_pdf_dir = self.file_manager.get_func2_dir("result_pdf")
+        
+        # 如果提供了自定义输出目录，使用自定义目录；否则使用默认目录
+        final_result_word_dir = Path(result_word_dir) if result_word_dir else self.file_manager.get_func2_dir("result_word")
+        final_result_pdf_dir = Path(result_pdf_dir) if result_pdf_dir else self.file_manager.get_func2_dir("result_pdf")
+        
+        # 创建输出目录，如果不存在的话
+        final_result_word_dir.mkdir(parents=True, exist_ok=True)
+        final_result_pdf_dir.mkdir(parents=True, exist_ok=True)
+        
         target_word_dir = target_word_dir or self.file_manager.get_func2_dir("target_files")
-        return images_dir, result_word_dir, result_pdf_dir, target_word_dir
+        return images_dir, final_result_word_dir, final_result_pdf_dir, target_word_dir
 
     def _validate_images(self, image_files: List[Path]) -> None:
         """验证图片文件列表是否为空"""
@@ -173,10 +181,10 @@ class StampOverlayService:
                         # 将结果Word转换为PDF
                         if output_word.exists():
                             self._convert_word_to_pdf(output_word, result_pdf_dir)
-                            # 验证PDF是否生成
-                            pdf_file = result_pdf_dir / f"{output_word.stem}_stamped.pdf"
-                            if not pdf_file.exists():
-                                logger.warning(f"PDF文件 {pdf_file} 未生成，将重新尝试一次")
+                            # 验证PDF是否生成（兼容带/不带 _stamped 后缀的命名）
+                            pdf_file = self._find_pdf_file(result_pdf_dir, output_word.stem)
+                            if not pdf_file or not pdf_file.exists():
+                                logger.warning(f"PDF文件 {result_pdf_dir / output_word.stem} 未生成，将重新尝试一次")
                                 self._convert_word_to_pdf(output_word, result_pdf_dir)
 
                         logger.info(f"[UI配置模式] 成功处理 Word 文件 {word.name}，插入图片 {len(actual_image_paths)} 张")
@@ -192,11 +200,18 @@ class StampOverlayService:
                     import shutil
                     import os
 
+                    # 计算当前Word的页数，作为默认插入页码
+                    try:
+                        default_page_for_word = self.word_processor.get_word_page_count(word)
+                    except Exception:
+                        default_page_for_word = 1
+
                     temp_config = type('TempConfig', (), {
                         'filename': word.name,
                         'image_files': [str(sorted_images[image_index])],
-                        'insert_positions': ['last_page']  # 默认插入到最后一页
+                        'insert_positions': [default_page_for_word]
                     })()
+                    logger.info(f"[默认模式] 为 {word.name} 使用默认插入页码: {default_page_for_word}")
 
                     # 创建临时文件并处理
                     temp_output = output_word.parent / f"{word.stem}_temp.docx"
@@ -210,12 +225,12 @@ class StampOverlayService:
                         image_index += 1
 
                         # 将结果Word转换为PDF
-                        if output_word.exists():
+                            if output_word.exists():
                             self._convert_word_to_pdf(output_word, result_pdf_dir)
-                            # 验证PDF是否生成
-                            pdf_file = result_pdf_dir / f"{output_word.stem}_stamped.pdf"
-                            if not pdf_file.exists():
-                                logger.warning(f"PDF文件 {pdf_file} 未生成，将重新尝试一次")
+                            # 验证PDF是否生成（兼容带/不带 _stamped 后缀的命名）
+                            pdf_file = self._find_pdf_file(result_pdf_dir, output_word.stem)
+                            if not pdf_file or not pdf_file.exists():
+                                logger.warning(f"PDF文件 {result_pdf_dir / output_word.stem} 未生成，将重新尝试一次")
                                 self._convert_word_to_pdf(output_word, result_pdf_dir)
 
                         logger.info(f"[默认模式] 成功处理 Word 文件 {word.name}，插入图片 1 张")
@@ -232,11 +247,11 @@ class StampOverlayService:
         # 安全检查：确保所有成功处理的Word文件都已转换为PDF
         for word_file in result_word_files:
             if word_file.exists():
-                # 检查PDF是否已存在
-                pdf_file = result_pdf_dir / f"{word_file.stem}_stamped.pdf"
+                # 检查PDF是否已存在（兼容带/不带 _stamped 后缀的命名）
+                pdf_file = self._find_pdf_file(result_pdf_dir, word_file.stem)
 
-                if not pdf_file.exists():
-                    logger.info(f"【安全检查】重新生成 PDF 文件：{pdf_file}")
+                if not pdf_file or not pdf_file.exists():
+                    logger.info(f"【安全检查】重新生成 PDF 文件：{result_pdf_dir / word_file.stem}")
                     self._convert_word_to_pdf(word_file, result_pdf_dir)
 
         return result_word_files
@@ -304,8 +319,41 @@ class StampOverlayService:
         temp_output = output_word.parent / f"{word.stem}_temp.docx"
         shutil.copy2(word, temp_output)
 
+        # 规范化插入位置：将 'last_page' 或 非数值项回退为文档总页数（后端强制处理旧配置）
+        def _normalize_positions(positions):
+            try:
+                total_pages = self.word_processor.get_word_page_count(word)
+            except Exception:
+                total_pages = 1
+
+            normalized = []
+            for pos in positions:
+                try:
+                    if isinstance(pos, str):
+                        s = pos.strip().lower()
+                        if s == 'last_page' or s == '-1':
+                            n = total_pages
+                        else:
+                            n = int(float(s))
+                    else:
+                        n = int(pos)
+                except Exception:
+                    n = total_pages
+
+                # Clamp to [1, total_pages]
+                if n < 1:
+                    n = 1
+                if total_pages and n > total_pages:
+                    n = total_pages
+                normalized.append(n)
+
+            return normalized
+
+        normalized_positions = _normalize_positions(current_config.insert_positions)
+
         # 插入每张图片
-        for img_input, position in zip(current_config.image_files, current_config.insert_positions):
+        for img_input, position in zip(current_config.image_files, normalized_positions):
+            logger.info(f"[UI配置模式] 将图片 {img_input} 插入文件 {word.name} 的页码 {position}")
             # 支持两种图片路径格式：直接路径和文件名
             img_path = Path(img_input) if Path(img_input).exists() else images_dir / img_input
 
@@ -322,15 +370,18 @@ class StampOverlayService:
                                                 target_width=image_width, keep_ratio=True)
                 final_image = scaled_image
 
-            # 获取插入位置
-            # 只支持数字格式的页码
-            if position:  # 非空值
-                image_location = str(position)  # 转换为字符串格式
-            else:
-                image_location = "1"  # 默认插入到第一页
+            # 获取插入位置（仅数值）
+            try:
+                # position 可能已经是数字，也可能是字符串数字
+                image_page = int(position)
+            except Exception:
+                try:
+                    image_page = self.word_processor.get_word_page_count(word)
+                except Exception:
+                    image_page = 1
 
-            # 插入图片
-            self.word_processor.insert_image_to_word(temp_output, final_image, image_location, temp_output)
+            # 插入图片（传递数值页码）
+            self.word_processor.insert_image_to_word(temp_output, final_image, image_page, temp_output)
 
         # 将临时文件重命名为最终输出
         if os.path.exists(output_word):
@@ -371,12 +422,39 @@ class StampOverlayService:
                                             target_width=image_width, keep_ratio=True)
             final_image = scaled_image
 
-        # 插入图片
-        self.word_processor.insert_image_to_word(word, final_image, "last_page", output_word)
+        # 插入图片，计算最后一页的页码并传入数值
+        try:
+            last_page = self.word_processor.get_word_page_count(word)
+        except Exception:
+            last_page = 1
+        self.word_processor.insert_image_to_word(word, final_image, last_page, output_word)
         return True
 
     def _convert_word_to_pdf(self, output_word: Path, result_pdf_dir: Path) -> None:
         """将Word文件转换为PDF"""
-        output_pdf = result_pdf_dir / f"{output_word.stem}_stamped.pdf"
+        output_pdf = result_pdf_dir / f"{output_word.stem}"
         self.word_processor.word_to_pdf(output_word, output_pdf)
         logger.debug(f"生成最终PDF：{output_pdf}")
+
+    def _find_pdf_file(self, result_pdf_dir: Path, stem: str) -> Path:
+        """在结果目录中查找与给定word stem对应的PDF文件，兼容带或不带 "_stamped" 后缀的命名"""
+        # 优先匹配常见命名
+        candidates = []
+        try:
+            stamped = result_pdf_dir / f"{stem}_stamped.pdf"
+            normal = result_pdf_dir / f"{stem}.pdf"
+            if stamped.exists():
+                return stamped
+            if normal.exists():
+                return normal
+
+            # 退而求其次：查找没有扩展名或其他变体（e.g., 导出时未带 .pdf）
+            for p in result_pdf_dir.iterdir():
+                if not p.is_file():
+                    continue
+                if p.stem == stem or p.stem == f"{stem}_stamped":
+                    candidates.append(p)
+        except Exception:
+            return None
+
+        return candidates[0] if candidates else None
