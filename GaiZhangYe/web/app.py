@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 import logging
 from GaiZhangYe.web import create_app
+from GaiZhangYe.utils.config import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 app = create_app()
 
 if __name__ == "__main__":
+    settings = get_settings()
     logger.info("启动HTML可视化服务...")
-    logger.info("服务将在 http://localhost:5001 启动")
+    logger.info(f"服务将在 http://localhost:{settings.web_port} 启动")
     logger.info("按 Ctrl+C 停止服务")
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    app.run(host="0.0.0.0", port=settings.web_port, debug=False)

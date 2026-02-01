@@ -1,5 +1,4 @@
 from flask import Blueprint, render_template
-from GaiZhangYe.core.basic.file_manager import get_file_manager
 
 pages_bp = Blueprint('pages', __name__)
 

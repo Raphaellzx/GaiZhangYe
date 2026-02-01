@@ -34,7 +34,6 @@
                     <div class="folder-picker-container">
                         <div class="folder-input-group">
                             <input type="text" id="word-input-dir" placeholder="输入Word文件夹路径" class="folder-input">
-                            <button class="btn btn-primary" onclick="selectWordDirectory()">浏览...</button>
                         </div>
                     </div>
                 </div>
@@ -44,7 +43,6 @@
                     <div class="folder-picker-container">
                         <div class="folder-input-group">
                             <input type="text" id="pdf-output-dir" placeholder="输入PDF保存文件夹路径" class="folder-input">
-                            <button class="btn btn-primary" onclick="selectPdfDirectory()">浏览...</button>
                         </div>
                     </div>
                 </div>
@@ -53,8 +51,6 @@
 
             <div class="operations">
                 <button class="btn" onclick="startConversion()">开始转换</button>
-                <button class="btn" onclick="window.location.href='/api/directories'">查看目录</button>
-
                 <div id="result" class="mt-15 muted-text"></div>
             </div>
         </div>

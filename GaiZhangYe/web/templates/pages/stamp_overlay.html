@@ -242,35 +242,9 @@
                     console.warn('session check failed', e);
                 }
 
-                // 先加载缓存的数据
+                // 先加载缓存的数据（如果有）
                 loadFromCache();
-
-                // 从服务器获取默认输出路径（如果没有缓存）
-                fetch('/api/get-default-output-paths', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // 只有在没有缓存值时才使用默认值
-                        if (!resultWordPath && data.result_word_path) {
-                            resultWordPath = data.result_word_path;
-                            document.getElementById('resultWordPath').value = resultWordPath;
-                            saveToCache();
-                        }
-                        if (!resultPdfPath && data.result_pdf_path) {
-                            resultPdfPath = data.result_pdf_path;
-                            document.getElementById('resultPdfPath').value = resultPdfPath;
-                            saveToCache();
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('获取默认输出路径失败:', error);
-                });
+                // 不自动获取默认路径，保持输入框为空
             })
             .catch(err => console.error('session check failed', err));
         });

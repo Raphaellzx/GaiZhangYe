@@ -2,7 +2,6 @@
 """
 功能2：盖章页覆盖服务
 """
-import re
 from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
@@ -13,7 +12,6 @@ from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.basic.pdf_processor import PdfProcessor
 from GaiZhangYe.core.basic.image_processor import ImageProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError
-from GaiZhangYe.core.data_communication import get_data_service
 
 logger = get_logger(__name__)
 
@@ -198,7 +196,6 @@ class StampOverlayService:
                 try:
                     # 使用配置模式处理单张图片的默认情况
                     import shutil
-                    import os
 
                     # 计算当前Word的页数，作为默认插入页码
                     try:
@@ -225,7 +222,7 @@ class StampOverlayService:
                         image_index += 1
 
                         # 将结果Word转换为PDF
-                            if output_word.exists():
+                        if output_word.exists():
                             self._convert_word_to_pdf(output_word, result_pdf_dir)
                             # 验证PDF是否生成（兼容带/不带 _stamped 后缀的命名）
                             pdf_file = self._find_pdf_file(result_pdf_dir, output_word.stem)
@@ -404,7 +401,7 @@ class StampOverlayService:
 
         # 如果没有找到严格匹配的图片，尝试按顺序分配
         if not img_for_word:
-            logger.info(f"[默认模式] 未找到严格匹配的图片，尝试按顺序分配")
+            logger.info("[默认模式] 未找到严格匹配的图片，尝试按顺序分配")
             for img in sorted_images:
                 if str(img) not in used_images:
                     img_for_word = img

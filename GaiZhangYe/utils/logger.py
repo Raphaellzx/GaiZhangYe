@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -65,7 +64,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     file_handler = logging.handlers.RotatingFileHandler(
         main_log_file,
         maxBytes=10 * 1024 * 1024,  # 单个文件最大10MB
-        backupCount=5,              # 保留5个备份文件
+        backupCount=2,              # 保留5个备份文件
         encoding="utf-8",           # 确保中文正常显示
     )
     file_handler.setFormatter(formatter)
@@ -77,7 +76,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     error_handler = logging.handlers.RotatingFileHandler(
         error_log_file,
         maxBytes=5 * 1024 * 1024,   # 单个错误日志最大5MB
-        backupCount=3,              # 保留3个备份
+        backupCount=2,              # 保留3个备份
         encoding="utf-8",
     )
     error_handler.setFormatter(formatter)

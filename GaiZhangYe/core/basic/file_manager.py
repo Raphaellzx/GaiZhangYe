@@ -1,16 +1,29 @@
 # GaiZhangYe/core/file_manager.py
+import sys
 from pathlib import Path
 from typing import Dict, Optional
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.models.exceptions import DirCreateError
+import os
 
 logger = get_logger(__name__)
 
 class FileManager:
     """业务目录管理器：创建/管理business_data下的所有目录"""
     def __init__(self, root_dir: Optional[Path] = None):
-        # 业务根目录默认：项目根/business_data
-        self.root_dir = root_dir or Path(__file__).parent.parent.parent / "business_data"
+        # 业务根目录默认：用户AppData目录
+        if root_dir is None:
+            # 获取用户AppData目录
+            if sys.platform == 'win32':
+                appdata_path = Path(os.getenv('APPDATA'))
+            elif sys.platform == 'darwin':
+                appdata_path = Path.home() / 'Library' / 'Application Support'
+            else:
+                appdata_path = Path.home() / '.config'
+
+            self.root_dir = appdata_path / "GaiZhangYe" / "business_data"
+        else:
+            self.root_dir = root_dir
         self.func1_dirs: Dict[str, Path] = {}  # 功能1目录映射
         self.func2_dirs: Dict[str, Path] = {}  # 功能2目录映射
         self._init_all_dirs()

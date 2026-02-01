@@ -1,13 +1,10 @@
 import os
 import sys
-import json
-import uuid
 from pathlib import Path
 from flask import Blueprint, request, jsonify, current_app
 
 from GaiZhangYe.core.basic.file_manager import get_file_manager
 from GaiZhangYe.core.basic.file_processor import (
-    windows_natural_sort_key,
     sort_files_windows_style,
     sort_dicts_by_name_windows_style,
 )

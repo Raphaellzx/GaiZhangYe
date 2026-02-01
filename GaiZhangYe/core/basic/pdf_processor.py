@@ -4,7 +4,7 @@ PDF处理核心：基于pymupdf实现PDF相关操作
 """
 import pymupdf as fitz  # pymupdf
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.models.exceptions import PdfProcessError
 

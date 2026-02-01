@@ -9,13 +9,15 @@ import sys
 import subprocess
 import time
 import webbrowser
+from GaiZhangYe.utils.config import get_settings
 
 def kill_old_processes():
     """清除旧的Python进程和占用指定端口的进程"""
     print("[1/3] 正在检查旧的Python进程...")
 
-    # 要检查的端口
-    ports_to_check = [5001]
+    # 从配置文件读取要检查的端口
+    settings = get_settings()
+    ports_to_check = [settings.web_port]
 
     try:
         # Windows系统
@@ -92,13 +94,15 @@ def start_service():
 
     try:
         from GaiZhangYe.web.app import app
+        # 在try块内部重新获取配置以确保作用域正确
+        settings = get_settings()
 
-        print("服务将在 http://localhost:5001 启动")
+        print(f"服务将在 http://localhost:{settings.web_port} 启动")
 
         # 打开浏览器
         def open_browser():
             time.sleep(1)
-            webbrowser.open('http://localhost:5001')
+            webbrowser.open(f'http://localhost:{settings.web_port}')
 
         import threading
         browser_thread = threading.Thread(target=open_browser)
@@ -108,7 +112,7 @@ def start_service():
         # 启动服务
         app.run(
             host='0.0.0.0',
-            port=5001,
+            port=settings.web_port,
             debug=False
         )
 

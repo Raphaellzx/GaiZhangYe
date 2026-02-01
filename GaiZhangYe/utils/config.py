@@ -1,5 +1,8 @@
 # utils/config.py
+import sys
+import os
 import logging
+from typing import Optional
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,12 +11,27 @@ class AppSettings(BaseSettings):
     # 日志配置（与.env.example对应）
     log_level: str = "INFO"
     log_dir: Path = Path(__file__).parent.parent.parent / "logs"  # 默认项目根/logs
-    
-    # 业务目录配置
-    business_data_root: Path = Path(__file__).parent.parent.parent / "business_data"
-    
+
+    # 业务目录配置（默认使用AppData目录）
+    business_data_root: Optional[Path] = None
+
     # 图片默认缩放宽度（功能2）
     image_default_width: int = 800
+
+    # Web服务配置
+    web_port: int = 5001
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # 如果未配置业务目录，自动设置为AppData目录
+        if self.business_data_root is None:
+            if sys.platform == 'win32':
+                appdata_path = Path(os.getenv('APPDATA'))
+            elif sys.platform == 'darwin':
+                appdata_path = Path.home() / 'Library' / 'Application Support'
+            else:
+                appdata_path = Path.home() / '.config'
+            self.business_data_root = appdata_path / "GaiZhangYe" / "business_data"
 
     # 加载.env文件
     model_config = SettingsConfigDict(

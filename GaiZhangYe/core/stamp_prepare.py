@@ -1,6 +1,6 @@
 # GaiZhangYe/core/services/stamp_prepare.py
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.basic.file_processor import windows_natural_sort_key
 from GaiZhangYe.core.basic.file_manager import get_file_manager
@@ -11,7 +11,6 @@ from GaiZhangYe.core.models.exceptions import BusinessError
 from GaiZhangYe.core.data_communication import get_data_service
 
 import pymupdf as fitz # PyMuPDF
-import os
 
 logger = get_logger(__name__)
 
@@ -103,7 +102,7 @@ class StampPrepareService:
                             try:
                                 temp_pdf.unlink()
                                 logger.info(f"已删除临时PDF文件：{temp_pdf}")
-                            except Exception as e:
+                            except Exception:
                                 logger.error(f"删除临时PDF文件失败：{temp_pdf}", exc_info=True)
 
             # 保存合并后的PDF文件

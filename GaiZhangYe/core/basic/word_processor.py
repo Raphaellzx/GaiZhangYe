@@ -4,6 +4,7 @@ import pythoncom
 
 # 动态生成常量
 win32 = win32com.client.constants
+# ruff: noqa: E402
 from pathlib import Path
 from typing import List
 
