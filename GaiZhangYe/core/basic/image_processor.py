@@ -1,7 +1,3 @@
-# GaiZhangYe/core/image_processor.py
-"""
-图片处理核心：基于Pillow实现图片相关操作
-"""
 from PIL import Image
 from pathlib import Path
 from GaiZhangYe.utils.logger import get_logger
@@ -44,8 +40,8 @@ class ImageProcessor:
                         # 按目标高度等比缩放
                         scale_factor = target_height / original_height
                         target_width = int(original_width * scale_factor)
-                # 如果keep_ratio为False且同时提供了宽高，则直接使用
 
+                # 如果keep_ratio为False且同时提供了宽高，则直接使用
                 new_size = (target_width, target_height)
                 logger.debug(f"缩放后图片尺寸：{new_size}")
 

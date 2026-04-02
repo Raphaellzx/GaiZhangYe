@@ -1,5 +1,4 @@
 # utils/config.py
-import sys
 import os
 import logging
 from typing import Optional
@@ -25,12 +24,7 @@ class AppSettings(BaseSettings):
         super().__init__(**data)
         # 如果未配置业务目录，自动设置为AppData目录
         if self.business_data_root is None:
-            if sys.platform == 'win32':
-                appdata_path = Path(os.getenv('APPDATA'))
-            elif sys.platform == 'darwin':
-                appdata_path = Path.home() / 'Library' / 'Application Support'
-            else:
-                appdata_path = Path.home() / '.config'
+            appdata_path = Path(os.getenv('APPDATA'))
             self.business_data_root = appdata_path / "GaiZhangYe" / "business_data"
 
     # 加载.env文件
@@ -49,7 +43,7 @@ def get_settings() -> AppSettings:
 
 # 初始化业务目录（启动时自动执行）
 def init_business_dirs():
-    from GaiZhangYe.core.file_manager import FileManager
+    from GaiZhangYe.core.basic.file_manager import FileManager
     try:
         FileManager(root_dir=_settings.business_data_root)
     except Exception as e:

@@ -47,30 +47,6 @@ def kill_old_processes():
                 except Exception as e:
                     print(f"  × 检查端口 {port} 失败: {e}")
 
-        # Linux/macOS系统
-        elif sys.platform in ["linux", "darwin"]:
-            # 检查并杀死占用指定端口的进程
-            for port in ports_to_check:
-                try:
-                    # 查找占用端口的进程ID
-                    result = subprocess.run(
-                        ["lsof", "-i", f":{port}"],
-                        capture_output=True, text=True
-                    )
-
-                    # 分析结果找到对应的PID
-                    for line in result.stdout.split('\n')[1:]:  # 跳过表头
-                        if line:
-                            parts = line.split()
-                            pid = parts[1]
-                            print(f"  发现占用端口 {port} 的进程PID: {pid}")
-
-                            # 杀死该进程
-                            subprocess.run(["kill", "-9", pid], capture_output=True)
-                            print(f"  ✓ 已杀死占用端口 {port} 的进程")
-                except Exception as e:
-                    print(f"  × 检查端口 {port} 失败: {e}")
-
     except Exception as e:
         print("× 清除旧进程失败:", str(e))
 

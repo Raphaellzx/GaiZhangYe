@@ -2,12 +2,12 @@
 from pathlib import Path
 from typing import Optional
 from GaiZhangYe.utils.logger import get_logger
-from GaiZhangYe.core.basic.file_processor import windows_natural_sort_key
+from GaiZhangYe.core.basic.file_manager import windows_natural_sort_key
 from GaiZhangYe.core.basic.file_manager import get_file_manager
 from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.basic.pdf_processor import PdfProcessor
-from GaiZhangYe.core.basic.file_processor import FileProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError
+from GaiZhangYe.core.models.data_models import Func1Data
 from GaiZhangYe.core.data_communication import get_data_service
 
 import pymupdf as fitz # PyMuPDF
@@ -20,14 +20,13 @@ class StampPrepareService:
         self.file_manager = get_file_manager()
         self.word_processor = WordProcessor()
         self.pdf_processor = PdfProcessor()
-        self.file_processor = FileProcessor()
 
-    def run(self, target_pages: Optional[dict[str, list[int]]] = None, word_dir: Optional[Path] = None, output_dir: Optional[Path] = None) -> list[Path]:
+    def run(self, target_pages: Optional[Func1Data] = None, word_dir: Optional[Path] = None, output_dir: Optional[Path] = None) -> list[Path]:
         # 如果没有传入target_pages，从数据文件中读取
         if target_pages is None:
             target_pages = get_data_service().get_func1_data()
         # 如果数据文件中也没有数据，抛出异常
-        if not target_pages:
+        if not target_pages.target_pages:
             raise BusinessError("没有找到要提取的页面配置数据")
         """
         :param target_pages: 要提取的页面字典，键为Word文件名，值为页面列表
@@ -41,10 +40,16 @@ class StampPrepareService:
         """
         logger.info("开始执行【功能1：准备盖章页】")
         try:
-            # 1. 获取功能1目录（优先用传入的word_dir，否则用默认目录）
-            nostamped_word_dir = word_dir or self.file_manager.get_func1_dir("nostamped_word")
+            # 设置自定义路径（如果有）
+            if word_dir:
+                self.file_manager.set_custom_func1_dir("nostamped_word", word_dir)
+            if output_dir:
+                self.file_manager.set_custom_func1_dir("stamped_pages", output_dir)
+
+            # 获取功能1目录（会自动返回自定义路径或默认路径）
+            nostamped_word_dir = self.file_manager.get_func1_dir("nostamped_word")
             nostamped_pdf_dir = self.file_manager.get_func1_dir("nostamped_pdf")
-            stamped_pages_dir = output_dir or self.file_manager.get_func1_dir("stamped_pages")
+            stamped_pages_dir = self.file_manager.get_func1_dir("stamped_pages")
 
             # 如果输出目录不存在，创建它
             if isinstance(stamped_pages_dir, str):
@@ -56,7 +61,7 @@ class StampPrepareService:
             temp_dir.mkdir(exist_ok=True)
 
             # 2. 校验输入目录有Word文件
-            word_files = self.file_processor.list_files(nostamped_word_dir, [".docx", ".doc"])
+            word_files = self.file_manager.list_files(nostamped_word_dir, [".docx", ".doc"])
             if not word_files:
                 raise BusinessError(f"目录{nostamped_word_dir}无Word文件")
 
@@ -68,8 +73,8 @@ class StampPrepareService:
 
             for word_file in sorted_word_files:
                 word_filename = word_file.stem
-                if word_filename in target_pages:
-                    pages_to_extract = target_pages[word_filename]
+                if word_filename in target_pages.target_pages:
+                    pages_to_extract = target_pages.target_pages[word_filename]
                     logger.info(f"正在将 {word_file.name} 的页面 {pages_to_extract} 转换为PDF")
 
                     # 创建临时文件路径 - 保存到Temp目录

@@ -5,6 +5,7 @@ import os
 import sys
 import uuid
 from flask import Flask
+from flask_restx import Api
 
 
 def create_app():
@@ -23,11 +24,31 @@ def create_app():
     # 全局会话ID
     app.config['APP_SESSION_ID'] = str(uuid.uuid4())
 
-    # 注册蓝图
-    from .routes.pages import pages_bp
-    from .routes.api import api_bp
+    # 配置Flask-RESTX
+    api = Api(
+        app,
+        title='盖章页工具API',
+        version='1.0',
+        description='盖章页处理工具的API接口文档',
+        doc='/api/doc',  # API文档访问路径
+        prefix='/api',  # API前缀
+    )
 
+    # 注册蓝图和API命名空间
+    from .routes.pages import pages_bp
+    from .routes.api import api_ns
+
+    # 注册页面蓝图
     app.register_blueprint(pages_bp)
-    app.register_blueprint(api_bp)
+    # 将API命名空间添加到Flask-RESTX的Api对象中
+    api.add_namespace(api_ns)
+
+    # 调试路由信息
+    @app.route('/debug/routes')
+    def list_routes():
+        output = []
+        for rule in app.url_map.iter_rules():
+            output.append(f"{rule.endpoint}: {rule.rule}")
+        return "\n".join(sorted(output)), 200, {'Content-Type': 'text/plain'}
 
     return app

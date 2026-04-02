@@ -5,7 +5,7 @@
 from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
-from GaiZhangYe.core.basic.file_processor import FileProcessor
+from GaiZhangYe.core.basic.file_manager import get_file_manager
 from GaiZhangYe.core.basic.word_processor import WordProcessor
 from GaiZhangYe.core.models.exceptions import BusinessError
 
@@ -16,7 +16,7 @@ class BatchConvertService:
     """批量Word转PDF服务"""
 
     def __init__(self):
-        self.file_processor = FileProcessor()
+        self.file_manager = get_file_manager()
         self.word_processor = WordProcessor()
 
     def run(self, input_dir: Path, output_dir: Path) -> List[Path]:
@@ -28,11 +28,17 @@ class BatchConvertService:
         """
         logger.info("开始执行【功能3：批量Word转PDF】")
         try:
+            # 设置自定义路径（如果有）
+            if input_dir:
+                self.file_manager.set_custom_func2_dir("target_files", input_dir)
+            if output_dir:
+                self.file_manager.set_custom_func2_dir("result_pdf", output_dir)
+
             # 确保输出目录存在
             output_dir.mkdir(exist_ok=True, parents=True)
 
             # 1. 列出输入目录中的所有Word文件
-            word_files = self.file_processor.list_files(input_dir, [".docx", ".doc"])
+            word_files = self.file_manager.list_files(input_dir, [".docx", ".doc"])
             if not word_files:
                 raise BusinessError(f"目录{input_dir}中未找到Word文件")
 

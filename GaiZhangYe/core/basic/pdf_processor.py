@@ -1,8 +1,4 @@
-# GaiZhangYe/core/pdf_processor.py
-"""
-PDF处理核心：基于pymupdf实现PDF相关操作
-"""
-import pymupdf as fitz  # pymupdf
+import pymupdf as fitz
 from pathlib import Path
 from typing import List
 from GaiZhangYe.utils.logger import get_logger
