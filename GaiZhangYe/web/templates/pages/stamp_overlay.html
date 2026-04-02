@@ -54,6 +54,10 @@
                                 <input type="text" id="pdfFilePath" placeholder="例如：D:\stamps\stamp.pdf" class="folder-input">
                                 <button class="btn btn-success" onclick="extractPdfImages()">从PDF提取图片</button>
                             </div>
+                            <div id="pdfLoadingSpinner" class="loading-spinner" style="display: none;">
+                                <div class="spinner"></div>
+                                <p>正在提取图片中...</p>
+                            </div>
                             <div id="pdfExtractionStatus" class="scan-status"></div>
                         </div>
                     </div>
@@ -67,6 +71,7 @@
                     <table class="config-table" id="config-table">
                         <thead>
                             <tr>
+                                <th>序号</th>
                                 <th>Word文件和图片配置</th>
                                 <th>操作</th>
                             </tr>
@@ -100,7 +105,6 @@
                 </div>
 
                 <button class="btn btn-success" onclick="startProcessing()">开始覆盖</button>
-                <button class="btn btn-warning" onclick="if(confirm('确定要清除本页面的所有缓存数据吗？')) { clearCache(); alert('缓存已清除，请刷新页面'); }">清除缓存</button>
 
                 <div id="result"></div>
             </div>
@@ -112,99 +116,6 @@
     </div>
 
     <script>
-        // ==================== 数据缓存管理 ====================
-        const CACHE_KEY_PREFIX = 'stamp_overlay_';
-        
-        // 缓存键定义
-        const CACHE_KEYS = {
-            WORD_FOLDER: CACHE_KEY_PREFIX + 'word_folder',
-            PDF_FILE: CACHE_KEY_PREFIX + 'pdf_file',
-            WORD_FILES: CACHE_KEY_PREFIX + 'word_files',
-            IMAGE_FILES: CACHE_KEY_PREFIX + 'image_files',
-            EXTRACTED_FOLDER: CACHE_KEY_PREFIX + 'extracted_folder',
-            RESULT_WORD_PATH: CACHE_KEY_PREFIX + 'result_word_path',
-            RESULT_PDF_PATH: CACHE_KEY_PREFIX + 'result_pdf_path',
-            CONFIG: CACHE_KEY_PREFIX + 'config'
-        };
-        
-        // 从localStorage加载数据
-        function loadFromCache() {
-            try {
-                const wordFolder = localStorage.getItem(CACHE_KEYS.WORD_FOLDER);
-                const pdfFile = localStorage.getItem(CACHE_KEYS.PDF_FILE);
-                const wordFilesStr = localStorage.getItem(CACHE_KEYS.WORD_FILES);
-                const imageFilesStr = localStorage.getItem(CACHE_KEYS.IMAGE_FILES);
-                const extractedFolder = localStorage.getItem(CACHE_KEYS.EXTRACTED_FOLDER);
-                const resultWord = localStorage.getItem(CACHE_KEYS.RESULT_WORD_PATH);
-                const resultPdf = localStorage.getItem(CACHE_KEYS.RESULT_PDF_PATH);
-                const configStr = localStorage.getItem(CACHE_KEYS.CONFIG);
-                
-                // 恢复输入框的值
-                if (wordFolder) {
-                    document.getElementById('wordFolderPath').value = wordFolder;
-                }
-                if (pdfFile) {
-                    document.getElementById('pdfFilePath').value = pdfFile;
-                }
-                
-                // 恢复全局变量
-                if (wordFilesStr) {
-                    wordFiles = JSON.parse(wordFilesStr);
-                }
-                if (imageFilesStr) {
-                    imageFiles = JSON.parse(imageFilesStr);
-                }
-                if (extractedFolder) {
-                    extractedImagesFolderPath = extractedFolder;
-                }
-                if (resultWord) {
-                    resultWordPath = resultWord;
-                    document.getElementById('resultWordPath').value = resultWordPath;
-                }
-                if (resultPdf) {
-                    resultPdfPath = resultPdf;
-                    document.getElementById('resultPdfPath').value = resultPdfPath;
-                }
-                if (configStr) {
-                    currentConfig = JSON.parse(configStr);
-                }
-                
-                // 如果有缓存的数据，重新初始化配置表格
-                if (wordFiles.length > 0) {
-                    initializeConfigTable();
-                }
-            } catch (error) {
-                console.error('从缓存加载数据失败:', error);
-            }
-        }
-        
-        // 保存数据到localStorage
-        function saveToCache() {
-            try {
-                localStorage.setItem(CACHE_KEYS.WORD_FOLDER, document.getElementById('wordFolderPath').value);
-                localStorage.setItem(CACHE_KEYS.PDF_FILE, document.getElementById('pdfFilePath').value);
-                localStorage.setItem(CACHE_KEYS.WORD_FILES, JSON.stringify(wordFiles));
-                localStorage.setItem(CACHE_KEYS.IMAGE_FILES, JSON.stringify(imageFiles));
-                localStorage.setItem(CACHE_KEYS.EXTRACTED_FOLDER, extractedImagesFolderPath);
-                localStorage.setItem(CACHE_KEYS.RESULT_WORD_PATH, resultWordPath);
-                localStorage.setItem(CACHE_KEYS.RESULT_PDF_PATH, resultPdfPath);
-                localStorage.setItem(CACHE_KEYS.CONFIG, JSON.stringify(currentConfig));
-            } catch (error) {
-                console.error('保存数据到缓存失败:', error);
-            }
-        }
-        
-        // 清除缓存
-        function clearCache() {
-            try {
-                Object.values(CACHE_KEYS).forEach(key => {
-                    localStorage.removeItem(key);
-                });
-                console.log('缓存已清除');
-            } catch (error) {
-                console.error('清除缓存失败:', error);
-            }
-        }
 
         // ==================== 全局变量 ====================
         // 全局变量 - 使用模板变量直接赋值
@@ -215,38 +126,9 @@
         let resultPdfPath = ''; // 存储选择的PDF输出路径
         let extractedImagesFolderPath = ''; // 存储从PDF提取的图片文件夹路径
 
-        // 初始化输出路径，并在加载时检查后端会话（用于清理缓存）
+        // 初始化输出路径
         window.addEventListener('load', function() {
-            fetch('/api/session-id')
-            .then(r => r.json())
-            .then(data => {
-                try {
-                    const serverSession = data.session_id;
-                    const localSession = localStorage.getItem('app_session_id');
-                    if (!localSession || localSession !== serverSession) {
-                        // 清除与应用相关的缓存键
-                        const keys = [
-                            'stamp_overlay_WORD_FOLDER',
-                            'stamp_overlay_PDF_FILE',
-                            'stamp_overlay_WORD_FILES',
-                            'stamp_overlay_IMAGE_FILES',
-                            'stamp_overlay_EXTRACTED_FOLDER',
-                            'stamp_overlay_RESULT_WORD_PATH',
-                            'stamp_overlay_RESULT_PDF_PATH',
-                            'stamp_overlay_CONFIG'
-                        ];
-                        keys.forEach(k => localStorage.removeItem(k));
-                        localStorage.setItem('app_session_id', serverSession);
-                    }
-                } catch (e) {
-                    console.warn('session check failed', e);
-                }
-
-                // 先加载缓存的数据（如果有）
-                loadFromCache();
-                // 不自动获取默认路径，保持输入框为空
-            })
-            .catch(err => console.error('session check failed', err));
+            // 不自动获取默认路径，保持输入框为空
         });
 
         // 重置Word输出路径为默认
@@ -262,7 +144,6 @@
                 if (data.success && data.result_word_path) {
                     resultWordPath = data.result_word_path;
                     document.getElementById('resultWordPath').value = resultWordPath;
-                    saveToCache();
                 }
             })
             .catch(error => {
@@ -283,7 +164,6 @@
                 if (data.success && data.result_pdf_path) {
                     resultPdfPath = data.result_pdf_path;
                     document.getElementById('resultPdfPath').value = resultPdfPath;
-                    saveToCache();
                 }
             })
             .catch(error => {
@@ -291,51 +171,15 @@
             });
         }
 
-        // 浏览Word输出文件夹
-        function browseResultWordFolder() {
-            const folderPath = prompt('请输入Word输出文件夹路径（例如：D:\\Results）:');
-            if (folderPath) {
-                resultWordPath = folderPath;
-                document.getElementById('resultWordPath').value = resultWordPath;
-                saveToCache();
-            }
-        }
-
-        // 浏览PDF输出文件夹
-        function browseResultPdfFolder() {
-            const folderPath = prompt('请输入PDF输出文件夹路径（例如：D:\\Results）:');
-            if (folderPath) {
-                resultPdfPath = folderPath;
-                document.getElementById('resultPdfPath').value = resultPdfPath;
-                saveToCache();
-            }
-        }
 
         // ==================== 文件夹扫描函数 ====================
 
-        // 浏览Word文件夹
-        async function browseWordFolder() {
-            const folderPath = prompt('请输入Word文件夹路径（例如：D:\\data\\Word）:');
-            if (folderPath) {
-                document.getElementById('wordFolderPath').value = folderPath;
-                saveToCache();
-            }
-        }
-
-        // 浏览PDF文件
-        async function browsePdfFile() {
-            const pdfPath = prompt('请输入PDF文件路径（例如：D:\\stamps\\stamp.pdf）:');
-            if (pdfPath) {
-                document.getElementById('pdfFilePath').value = pdfPath;
-                saveToCache();
-            }
-        }
 
         // 从PDF提取图片
         async function extractPdfImages() {
             const pdfPath = document.getElementById('pdfFilePath').value.trim();
             const statusDiv = document.getElementById('pdfExtractionStatus');
-            const spinner = document.getElementById('loadingSpinner');
+            const spinner = document.getElementById('pdfLoadingSpinner');
 
             if (!pdfPath) {
                 statusDiv.className = 'scan-status error';
@@ -365,8 +209,6 @@
                     statusDiv.textContent = `✅ 成功提取 ${imageFiles.length} 张图片到: ${data.output_folder}`;
                     // 重新初始化配置表格
                     initializeConfigTable();
-                    // 保存缓存
-                    saveToCache();
                 } else {
                     statusDiv.className = 'scan-status error';
                     statusDiv.textContent = '提取失败: ' + data.error;
@@ -411,8 +253,6 @@
                     statusDiv.textContent = `成功扫描到 ${wordFiles.length} 个Word文件`;
                     // 重新初始化配置表格
                     initializeConfigTable();
-                    // 保存缓存
-                    saveToCache();
                 } else {
                     statusDiv.className = 'scan-status error';
                     statusDiv.textContent = '扫描失败: ' + data.error;
@@ -425,64 +265,6 @@
         }
 
         // 扫描Word目录和图片目录（调用后端 /api/scan-folder-with-images）
-        async function scanFolderWithImages() {
-            const folderPath = document.getElementById('wordFolderPath').value.trim();
-            const statusDiv = document.getElementById('wordScanStatus');
-            const spinner = document.getElementById('loadingSpinner');
-
-            if (!folderPath) {
-                statusDiv.className = 'scan-status error';
-                statusDiv.textContent = '请输入Word文件夹路径';
-                return;
-            }
-
-            // 图片文件夹优先使用已提取的路径，否则询问用户
-            let imageFolder = extractedImagesFolderPath || '';
-            if (!imageFolder) {
-                imageFolder = prompt('请输入图片文件夹路径（可选，留空表示仅扫描Word）:');
-                if (!imageFolder) imageFolder = '';
-            }
-
-            spinner.style.display = 'flex';
-            statusDiv.textContent = '';
-
-            try {
-                const response = await fetch('/api/scan-folder-with-images', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ word_path: folderPath, image_path: imageFolder })
-                });
-
-                const data = await response.json();
-                spinner.style.display = 'none';
-
-                if (data.success) {
-                    wordFiles = data.word_files || [];
-                    imageFiles = data.image_files || [];
-
-                    statusDiv.className = 'scan-status success';
-                    statusDiv.textContent = `成功加载 ${wordFiles.length} 个Word文件 和 ${imageFiles.length} 张图片`;
-
-                    // 如果后端返回了一个图片输出文件夹路径，保存到 extractedImagesFolderPath
-                    if (data.output_folder) {
-                        extractedImagesFolderPath = data.output_folder;
-                    }
-
-                    // 重新初始化配置表格并保存缓存
-                    initializeConfigTable();
-                    saveToCache();
-                } else {
-                    statusDiv.className = 'scan-status error';
-                    statusDiv.textContent = '扫描失败: ' + data.error;
-                }
-            } catch (error) {
-                spinner.style.display = 'none';
-                statusDiv.className = 'scan-status error';
-                statusDiv.textContent = '扫描出错: ' + error.message;
-            }
-        }
 
 
         // ==================== 配置表格函数 ====================
@@ -494,9 +276,16 @@
             const row = document.createElement('tr');
             row.dataset.wordIndex = wordIndex;
 
+            // 编号列
+            const numberCell = document.createElement('td');
+            numberCell.textContent = wordIndex + 1;
+            numberCell.style.textAlign = 'center';
+            numberCell.style.fontWeight = 'bold';
+
             // Word文件列
             const wordCell = document.createElement('td');
-            wordCell.innerHTML = `<div class="word-file-title">${wordFile.name}</div>`;
+            const fileTitle = wordFile.relative_path ? wordFile.relative_path : wordFile.name;
+            wordCell.innerHTML = `<div class="word-file-title">${fileTitle}</div>`;
 
             // 图片配置列
             const imageCell = document.createElement('td');
@@ -521,7 +310,27 @@
                 addImageConfigItem(imageConfig, wordFile, nextImageIndex);
             };
 
+            // 删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger btn-sm';
+            deleteBtn.textContent = '删除';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                tbody.removeChild(row);
+                updateConfig();
+                // 重新计算所有行的编号
+                const allRows = tbody.querySelectorAll('tr');
+                allRows.forEach((r, idx) => {
+                    const numberCell = r.querySelector('td:first-child');
+                    if (numberCell) {
+                        numberCell.textContent = idx + 1;
+                    }
+                });
+            };
+
             actionCell.appendChild(addBtn);
+            actionCell.appendChild(document.createTextNode(' '));
+            actionCell.appendChild(deleteBtn);
 
             // 合并Word文件和图片配置列
             const mergedCell = document.createElement('td');
@@ -538,6 +347,7 @@
 
             mergedCell.appendChild(verticalLayout);
 
+            row.appendChild(numberCell);
             row.appendChild(mergedCell);
             row.appendChild(actionCell);
             tbody.appendChild(row);
@@ -635,7 +445,8 @@
             // 遍历所有配置行
             const rows = document.querySelectorAll('#config-table-body tr');
             rows.forEach((row) => {
-                const wordFile = row.querySelector('td:first-child').textContent.trim();
+                const wordCell = row.querySelector('.word-file-title');
+                const wordFile = wordCell.textContent.trim();
                 const imageConfigItems = row.querySelectorAll('.image-config-item');
 
                 const images = [];
@@ -679,24 +490,20 @@
             }
             
             // 保存缓存
-            saveToCache();
         }
 
-        // 更新图片选择下拉框，移除已被选择的图片
+        // 更新图片选择下拉框，防止同一图片被多次选择
         function updateImageSelectOptions() {
-            // 收集所有已被选择的图片
+            // 收集所有已选择的图片
             const usedImages = new Set();
 
             // 遍历所有配置行
             const rows = document.querySelectorAll('#config-table-body tr');
             rows.forEach((row) => {
                 const imageConfigItems = row.querySelectorAll('.image-config-item');
-
-                // 遍历图片配置
                 imageConfigItems.forEach((item) => {
                     const imageSelect = item.querySelector('.image-select');
                     const selectedImage = imageSelect.value;
-
                     if (selectedImage) {
                         usedImages.add(selectedImage);
                     }
@@ -706,31 +513,20 @@
             // 更新所有下拉框
             const allImageSelects = document.querySelectorAll('.image-select');
             allImageSelects.forEach((select) => {
-                // 当前下拉框的选中值
                 const currentSelected = select.value;
 
-                // 保存当前选中值，防止被清除
-                let keepCurrent = false;
-
-                // 遍历所有选项
                 Array.from(select.options).forEach((option) => {
                     if (option.value === '') {
-                        // 保留默认选项
-                        return;
+                        return; // 保留默认选项
                     }
 
-                    if (usedImages.has(option.value)) {
-                        // 如果图片已被其他地方选择，并且不是当前下拉框的选中值，则禁用
-                        if (option.value !== currentSelected) {
-                            option.disabled = true;
-                            option.textContent = option.value + ' (已选择)';
-                        } else {
-                            keepCurrent = true;
-                            option.disabled = false;
-                            option.textContent = option.value;
-                        }
+                    const isUsed = usedImages.has(option.value);
+                    const isCurrent = option.value === currentSelected;
+
+                    if (isUsed && !isCurrent) {
+                        option.disabled = true;
+                        option.textContent = `${option.value} (已选择)`;
                     } else {
-                        // 图片未被选择，启用
                         option.disabled = false;
                         option.textContent = option.value;
                     }
@@ -778,11 +574,22 @@
                 });
             });
 
-            // 组装完整的数据结构，以匹配后端默认文件里的三段式结构（兼容后端）
+            // 组装完整的数据结构，符合后端 Func2Data 模型要求
+            const configs = [];
+            Object.keys(sanitizedConfig).forEach(wordName => {
+                const items = sanitizedConfig[wordName];
+                const imageFiles = items.map(item => item.image);
+                const positions = items.map(item => item.position);
+                configs.push({
+                    filename: wordName,
+                    image_files: imageFiles,
+                    positions: positions,
+                    image_width: 100
+                });
+            });
+
             const payload = {
-                target_files: (wordFiles || []).map(w => (typeof w === 'string' ? w : w.name)),
-                images: (imageFiles || []).map(i => i),
-                config: sanitizedConfig
+                configs: configs
             };
 
             return fetch('/api/func2/data', {
@@ -885,56 +692,6 @@
                     addConfigRow(wordFile, index);
                 });
             }
-        }
-
-        // 打开指定目录
-        function openDirectory(dirName) {
-            // 调用API打开目录，不显示提示
-            fetch(`/api/open-directory?dir_name=${encodeURIComponent(dirName)}`)
-                .then(response => response.json())
-                .then(data => {
-                    // 不显示任何提示
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        }
-
-        // 刷新Word文件列表
-        function refreshWordFiles() {
-            // 简单的刷新方式是重新加载页面
-            window.location.reload();
-        }
-
-        // 刷新图片文件列表
-        function refreshImageFiles() {
-            // 简单的刷新方式是重新加载页面
-            window.location.reload();
-        }
-
-        // 从PDF提取图片
-        function extractImagesFromPdf() {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = '<p class="result-info">正在从PDF提取图片...</p>';
-
-            fetch('/api/extract-images-from-pdf', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    resultDiv.innerHTML = '<p class="result-success">图片提取完成！共提取 ' + data.count + ' 张图片</p>';
-                    // 刷新页面
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    resultDiv.innerHTML = '<p class="result-error">图片提取失败：' + data.error + '</p>';
-                }
-            })
-            .catch(error => {
-                resultDiv.innerHTML = '<p class="result-error">图片提取失败：' + error.message + '</p>';
-            });
         }
 
         // 终止服务并关闭页面

@@ -13,10 +13,8 @@ from GaiZhangYe.core.models.data_models import Func2Data, StampConfig
 
 logger = get_logger(__name__)
 
-
 class StampOverlayService:
     """盖章页覆盖服务"""
-
     def __init__(self):
         self.file_manager = get_file_manager()
         self.word_processor = WordProcessor()
@@ -102,8 +100,8 @@ class StampOverlayService:
                 raise BusinessError(f"图片文件不存在：{img_path}")
 
     def _get_target_word_files(self, target_word_dir: Path) -> List[Path]:
-        """获取目标Word文件目录中的所有Word文件"""
-        word_files = self.file_manager.list_files(target_word_dir, [".docx", ".doc"])
+        """获取目标Word文件目录中的所有Word文件（包括子文件夹）"""
+        word_files = self.file_manager.list_files(target_word_dir, [".docx", ".doc"], recursive=True)
         if not word_files:
             raise BusinessError(f"目标Word目录{target_word_dir}中无Word文件")
         return word_files
@@ -149,7 +147,6 @@ class StampOverlayService:
             else:
                 logger.warning(f"无法处理 Word 文件 {word.name}")
 
-        self._ensure_pdfs_generated(result_word_files, result_pdf_dir)
         return result_word_files
 
     def _process_with_config(self, current_config: StampConfig, word: Path,
@@ -298,35 +295,3 @@ class StampOverlayService:
             normalized.append(n)
 
         return normalized
-
-
-    def _ensure_pdfs_generated(self, result_word_files: List[Path], result_pdf_dir: Path) -> None:
-        """确保所有成功处理的Word文件都已转换为PDF"""
-        for word_file in result_word_files:
-            if word_file.exists():
-                pdf_file = self._find_pdf_file(result_pdf_dir, word_file.stem)
-                if not pdf_file or not pdf_file.exists():
-                    logger.info(f"【安全检查】重新生成 PDF 文件：{result_pdf_dir / word_file.stem}")
-                    output_pdf = result_pdf_dir / f"{word_file.stem}.pdf"
-                    self.word_processor.word_to_pdf(word_file, output_pdf)
-
-    def _find_pdf_file(self, result_pdf_dir: Path, stem: str) -> Path:
-        """在结果目录中查找与给定word stem对应的PDF文件"""
-        candidates = []
-        try:
-            stamped = result_pdf_dir / f"{stem}_stamped.pdf"
-            normal = result_pdf_dir / f"{stem}.pdf"
-            if stamped.exists():
-                return stamped
-            if normal.exists():
-                return normal
-
-            for p in result_pdf_dir.iterdir():
-                if not p.is_file():
-                    continue
-                if p.stem == stem or p.stem == f"{stem}_stamped":
-                    candidates.append(p)
-        except Exception:
-            return None
-
-        return candidates[0] if candidates else None

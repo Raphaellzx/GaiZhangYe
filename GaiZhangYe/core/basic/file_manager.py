@@ -2,9 +2,14 @@ import re
 from pathlib import Path
 from typing import List, Optional, Union
 import os
-import win32api
 from GaiZhangYe.utils.logger import get_logger
 from GaiZhangYe.core.models.exceptions import FileProcessError
+
+# 尝试导入win32api，如果失败则设置为None
+try:
+    import win32api
+except ImportError:
+    win32api = None
 
 logger = get_logger(__name__)
 
@@ -156,24 +161,37 @@ class FileManager:
             raise FileProcessError(f"目录类型 {dir_type} 未设置")
         return dir_path
 
-    def list_files(self, dir_path: Path, allowed_extensions: Optional[List[str]] = None) -> List[Path]:
+    def list_files(self, dir_path: Path, allowed_extensions: Optional[List[str]] = None, recursive: bool = False) -> List[Path]:
         """
-        列出目录下的所有文件（支持按扩展名过滤）
+        列出目录下的所有文件（支持按扩展名过滤和递归扫描）
         :param dir_path: 目录路径
         :param allowed_extensions: 允许的扩展名列表，如[".docx", ".doc"]
+        :param recursive: 是否递归扫描子文件夹
         :return: 符合条件的文件路径列表
         """
         if not dir_path.exists() or not dir_path.is_dir():
             raise FileProcessError(f"目录不存在或不是目录：{dir_path}")
 
         all_files = []
-        for item in dir_path.iterdir():
-            if item.is_file():
-                if allowed_extensions:
-                    if item.suffix.lower() in [ext.lower() for ext in allowed_extensions]:
+
+        if recursive:
+            # 递归扫描所有子文件夹
+            for item in dir_path.rglob("*"):
+                if item.is_file():
+                    if allowed_extensions:
+                        if item.suffix.lower() in [ext.lower() for ext in allowed_extensions]:
+                            all_files.append(item)
+                    else:
                         all_files.append(item)
-                else:
-                    all_files.append(item)
+        else:
+            # 只扫描当前文件夹
+            for item in dir_path.iterdir():
+                if item.is_file():
+                    if allowed_extensions:
+                        if item.suffix.lower() in [ext.lower() for ext in allowed_extensions]:
+                            all_files.append(item)
+                    else:
+                        all_files.append(item)
 
         return sorted(all_files)
 
@@ -228,8 +246,13 @@ class FileManager:
         :return: 可用磁盘空间（字节）
         """
         try:
-            free_bytes = win32api.GetDiskFreeSpaceEx(str(dir_path))[0]
-            return free_bytes
+            if win32api:
+                free_bytes = win32api.GetDiskFreeSpaceEx(str(dir_path))[0]
+                return free_bytes
+            else:
+                # 当win32api不可用时，返回一个默认值
+                logger.warning("win32api不可用，返回默认磁盘空间值")
+                return 1024 * 1024 * 1024  # 默认返回1GB
         except Exception as e:
             logger.error(f"获取磁盘空间失败：{e}")
             raise FileProcessError(f"无法获取磁盘空间：{e}")

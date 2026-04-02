@@ -61,9 +61,8 @@ class ScanFolder(Resource):
     }))
     @api_ns.response(200, '成功扫描到Word文件')
     @api_ns.response(400, '无效的文件夹路径')
-    @api_ns.marshal_with(response_model)
     def post(self):
-        """扫描文件夹中的Word文件"""
+        """扫描文件夹中的Word文件（递归扫描子文件夹）"""
         try:
             from GaiZhangYe.core.basic.word_processor import WordProcessor
 
@@ -80,16 +79,40 @@ class ScanFolder(Resource):
             word_processor = WordProcessor()
             word_files = []
 
-            for filename in os.listdir(folder_path):
-                if filename.endswith((".docx", ".doc")):
-                    file_path = folder_path / filename
-                    page_count = None
-                    try:
-                        page_count = word_processor.get_word_page_count(file_path)
-                    except Exception as e:
-                        current_app.logger.warning(f"获取文件 {filename} 页数失败: {e}")
+            # 递归扫描所有子文件夹中的Word文件
+            for file_path in folder_path.rglob("*.docx"):
+                filename = file_path.name
+                page_count = None
+                try:
+                    page_count = word_processor.get_word_page_count(file_path)
+                    page_count = int(page_count) if page_count else 0
+                except Exception as e:
+                    current_app.logger.warning(f"获取文件 {filename} 页数失败: {e}")
+                    page_count = 0
 
-                    word_files.append({"name": filename, "stem": os.path.splitext(filename)[0], "page_count": page_count})
+                word_files.append({
+                    "name": filename,
+                    "stem": file_path.stem,
+                    "page_count": page_count,
+                    "relative_path": str(file_path.relative_to(folder_path))
+                })
+
+            for file_path in folder_path.rglob("*.doc"):
+                filename = file_path.name
+                page_count = None
+                try:
+                    page_count = word_processor.get_word_page_count(file_path)
+                    page_count = int(page_count) if page_count else 0
+                except Exception as e:
+                    current_app.logger.warning(f"获取文件 {filename} 页数失败: {e}")
+                    page_count = 0
+
+                word_files.append({
+                    "name": filename,
+                    "stem": file_path.stem,
+                    "page_count": page_count,
+                    "relative_path": str(file_path.relative_to(folder_path))
+                })
 
             word_files = sort_dicts_by_name_windows_style(word_files, 'name')
             return jsonify({"success": True, "files": word_files, "count": len(word_files)})
@@ -106,7 +129,6 @@ class ScanFolderWithImages(Resource):
         'image_path': fields.String(description='图片文件路径')
     }))
     @api_ns.response(200, '成功扫描到文件')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """扫描文件夹中的Word文件和图片"""
         try:
@@ -163,7 +185,6 @@ class WordToPdf(Resource):
         'output_dir': fields.String(description='输出目录')
     }))
     @api_ns.response(200, '成功转换为PDF')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """Word转PDF"""
         try:
@@ -205,7 +226,6 @@ class OpenDirectory(Resource):
     }))
     @api_ns.response(200, '成功打开目录')
     @api_ns.response(400, '无效的目录名')
-    @api_ns.marshal_with(response_model)
     def get(self):
         """打开目录"""
         dir_name = request.args.get('dir_name')
@@ -237,7 +257,6 @@ class OpenDirectory(Resource):
 class GetDefaultOutputPath(Resource):
     @api_ns.doc('获取默认输出路径')
     @api_ns.response(200, '成功获取默认输出路径')
-    @api_ns.marshal_with(response_model)
     def get(self):
         """获取默认输出路径"""
         try:
@@ -255,7 +274,6 @@ class GetDefaultOutputPath(Resource):
 class GetDefaultOutputPaths(Resource):
     @api_ns.doc('获取默认输出路径')
     @api_ns.response(200, '成功获取默认输出路径')
-    @api_ns.marshal_with(response_model)
     def get(self):
         """获取默认输出路径"""
         try:
@@ -277,7 +295,6 @@ class PrepareStamp(Resource):
     }))
     @api_ns.response(200, '成功准备盖章页')
     @api_ns.response(400, '缺少必填参数')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """准备盖章页"""
         try:
@@ -299,8 +316,10 @@ class PrepareStamp(Resource):
             if output_path:
                 file_manager.set_custom_func1_dir("stamped_pages", Path(output_path))
 
+            from GaiZhangYe.core.models.data_models import Func1Data
+            func1_data = Func1Data(target_pages=target_pages)
             stamp_service = StampPrepareService()
-            result_files = stamp_service.run(target_pages)
+            result_files = stamp_service.run(func1_data)
             return jsonify({"success": True, "message": "盖章页准备完成", "files": [str(f) for f in result_files]})
         except Exception as e:
             current_app.logger.error(f"准备盖章页失败: {str(e)}", exc_info=True)
@@ -333,7 +352,6 @@ class GetDirectories(Resource):
 class RefreshData(Resource):
     @api_ns.doc('刷新数据')
     @api_ns.response(200, '成功刷新数据')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """刷新数据"""
         try:
@@ -350,7 +368,6 @@ class RefreshData(Resource):
 class Func1Data(Resource):
     @api_ns.doc('获取功能1数据')
     @api_ns.response(200, '成功获取功能1数据')
-    @api_ns.marshal_with(response_model)
     def get(self):
         """获取功能1数据"""
         try:
@@ -368,7 +385,6 @@ class Func1Data(Resource):
         'target_pages': fields.Raw(required=True, description='目标页面配置')
     }))
     @api_ns.response(200, '成功保存功能1数据')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """保存功能1数据"""
         try:
@@ -396,7 +412,6 @@ class Func1Data(Resource):
 class Func2Data(Resource):
     @api_ns.doc('获取功能2数据')
     @api_ns.response(200, '成功获取功能2数据')
-    @api_ns.marshal_with(response_model)
     def get(self):
         """获取功能2数据"""
         try:
@@ -414,7 +429,6 @@ class Func2Data(Resource):
         'configs': fields.List(fields.Raw, required=True, description='盖章配置列表')
     }))
     @api_ns.response(200, '成功保存功能2数据')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """保存功能2数据"""
         try:
@@ -447,7 +461,6 @@ class ExtractImagesFromPdf(Resource):
     @api_ns.doc('从PDF提取图片')
     @api_ns.response(200, '成功提取图片')
     @api_ns.response(400, 'PDF文件不存在')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """从PDF提取图片"""
         try:
@@ -474,7 +487,6 @@ class ExtractPdfImages(Resource):
     }))
     @api_ns.response(200, '成功提取图片')
     @api_ns.response(400, '无效的PDF文件')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """从指定PDF文件提取图片"""
         try:
@@ -510,7 +522,6 @@ class StartStampOverlay(Resource):
         'result_pdf_path': fields.String(description='结果PDF文件路径')
     }))
     @api_ns.response(200, '成功开始盖章页覆盖')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """开始盖章页覆盖"""
         try:
@@ -530,7 +541,7 @@ class StartStampOverlay(Resource):
                 return jsonify({"success": False, "error": f"Word文件夹不存在: {target_word_dir}"})
 
             config_data = get_data_service().get_func2_data()
-            has_config = config_data and config_data.get('config') and len(config_data.get('config', {})) > 0
+            has_config = config_data and config_data.configs and len(config_data.configs) > 0
 
             image_files = []
             if images_folder:
@@ -550,7 +561,7 @@ class StartStampOverlay(Resource):
             stamp_service = StampOverlayService()
             result_files = stamp_service.run(
                 target_word_dir=target_word_dir,
-                configs=config_data.get('config', {}),
+                configs=config_data,
                 image_files=image_files if image_files else None,
                 result_word_dir=Path(result_word_path) if result_word_path else None,
                 result_pdf_dir=Path(result_pdf_path) if result_pdf_path else None,
@@ -566,7 +577,6 @@ class StartStampOverlay(Resource):
 class Shutdown(Resource):
     @api_ns.doc('关闭服务')
     @api_ns.response(200, '成功关闭服务')
-    @api_ns.marshal_with(response_model)
     def post(self):
         """关闭服务"""
         try:
@@ -576,8 +586,12 @@ class Shutdown(Resource):
                 import time
                 time.sleep(0.5)
                 try:
+                    # 使用更优雅的方式终止服务
                     if sys.platform == 'win32':
-                        os.system(f"taskkill /F /PID {os.getpid()}")
+                        # 发送SIGINT信号而不是强制杀死
+                        import ctypes
+                        kernel32 = ctypes.windll.kernel32
+                        kernel32.GenerateConsoleCtrlEvent(0, 0)  # 发送Ctrl+C信号
                     else:
                         import signal
                         os.kill(os.getpid(), signal.SIGINT)
@@ -585,7 +599,7 @@ class Shutdown(Resource):
                     sys.exit()
 
             threading.Thread(target=terminate_service, daemon=True).start()
-            return jsonify({"success": True, "message": "服务正在终止..."})
+            return {"success": True, "message": "服务正在终止..."}, 200
         except Exception as e:
             current_app.logger.error(f"终止服务失败: {e}")
-            return jsonify({"success": False, "error": f"终止服务失败: {str(e)}"})
+            return {"success": False, "error": f"终止服务失败: {str(e)}"}, 500

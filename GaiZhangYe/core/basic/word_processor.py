@@ -159,9 +159,12 @@ class WordProcessor:
 
             page_count = doc.ComputeStatistics(2)
 
+            # 确保返回的是可序列化的数据类型
+            page_count = int(page_count) if page_count else 0
+
             doc.Close(SaveChanges=False)
             logger.info(f"获取Word文件页数成功：{word_path} - {page_count}页")
-            return int(page_count)
+            return page_count
         except Exception as e:
             logger.error(f"获取Word文件页数失败：{word_path}", exc_info=True)
             raise WordProcessError(f"获取页数失败：{str(e)}") from e

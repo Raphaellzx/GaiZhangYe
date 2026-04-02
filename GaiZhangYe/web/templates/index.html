@@ -115,19 +115,25 @@
                     fetch('/api/shutdown', {
                         method: 'POST'
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert('服务已终止，请关闭页面');
+                    .then(response => {
+                        // 即使响应不是JSON格式（服务可能已经终止），我们也认为成功了
+                        if (response.ok) {
+                            alert('服务正在终止，请关闭页面');
                             // 关闭当前页面
-                            window.close();
+                            setTimeout(() => {
+                                window.close();
+                            }, 1000);
                         } else {
-                            alert('终止服务失败: ' + data.error);
+                            alert('终止服务失败');
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('终止服务失败');
+                        // 即使请求失败，也可能是服务已经成功终止
+                        alert('服务正在终止，请关闭页面');
+                        setTimeout(() => {
+                            window.close();
+                        }, 1000);
                     });
                 }
             }

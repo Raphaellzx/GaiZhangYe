@@ -1,6 +1,6 @@
 # 盖章页处理工具
 
-盖章页处理工具是一个Python应用程序，专为批量处理Word文档和PDF文件中的盖章页而设计。它提供了准备盖章页、盖章页覆盖以及批量Word转PDF等核心功能，支持命令行界面(CLI)和Web界面两种操作方式。
+盖章页处理工具是一个Python应用程序，专为批量处理Word文档和PDF文件中的盖章页而设计。它提供了准备盖章页、盖章页覆盖以及批量Word转PDF等核心功能，支持Web界面操作方式。
 
 ## 功能特性
 
@@ -12,7 +12,6 @@
 
 ### 🎮 操作方式
 
-- **CLI命令行**: 支持批量处理和自动化脚本
 - **Web界面**: 提供直观的图形界面操作
 
 ## 安装
@@ -62,30 +61,17 @@ python3.10 -m venv .venv && source .venv/bin/activate && pip install -r requirem
 
 ## 使用
 
-### 1. CLI命令行
-
-#### 准备盖章页
-```bash
-python -m GaiZhangYe.core.entrypoints.cli_start --prepare
-```
-
-#### 盖章页覆盖
-```bash
-python -m GaiZhangYe.core.entrypoints.cli_start --cover
-```
-
-#### 批量Word转PDF
-```bash
-python -m GaiZhangYe.core.entrypoints.cli_start --convert
-```
-
-### 2. Web界面
+### Web界面
 
 ```bash
+# 方式1：使用入口文件启动（推荐）
+python -m GaiZhangYe.core.entrypoints.start_service
+
+# 方式2：直接启动Flask应用
 python -m GaiZhangYe.web.app
 ```
 
-然后在浏览器中访问 http://localhost:5000
+然后在浏览器中访问 http://localhost:5001
 
 ## 项目结构
 
@@ -93,9 +79,24 @@ python -m GaiZhangYe.web.app
 GaiZhangYe/
 ├── business_data/       # 业务数据
 ├── core/               # 核心功能
-│   └── entrypoints/    # 入口文件
+│   ├── basic/          # 基础处理模块
+│   ├── entrypoints/    # 入口文件（包含start_service.py）
+│   ├── models/         # 数据模型和配置
+│   ├── stamp_prepare.py # 准备盖章页功能
+│   ├── stamp_overlay.py # 盖章页覆盖功能
+│   └── batch_convert.py # 批量Word转PDF功能
 ├── utils/              # 工具函数
-└── web/                # Web界面
+├── web/                # Web界面
+│   ├── templates/      # HTML模板
+│   │   ├── index.html  # 首页模板
+│   │   └── pages/      # 功能页面模板
+│   ├── static/         # 静态资源
+│   │   └── css/        # 样式文件
+│   │       └── theme.css # 主题样式文件
+│   └── routes/         # 路由和API
+│       ├── api.py      # API接口实现
+│       └── pages.py    # 页面路由实现
+└── tests/              # 测试文件
 ```
 
 ## 配置
@@ -147,4 +148,4 @@ Your Name - your@email.com
 ### v0.1.0 (2025-12-19)
 - 初始版本
 - 实现核心功能：准备盖章页、盖章页覆盖、批量Word转PDF
-- 支持CLI和Web两种操作方式
+- 支持Web界面操作方式

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-盖章页处理工具是一个Python应用程序，专为批量处理Word文档和PDF文件中的盖章页而设计。它提供了准备盖章页、盖章页覆盖以及批量Word转PDF等核心功能，支持命令行界面(CLI)和Web界面两种操作方式。
+盖章页处理工具是一个Python应用程序，专为批量处理Word文档和PDF文件中的盖章页而设计。它提供了准备盖章页、盖章页覆盖以及批量Word转PDF等核心功能，支持Web界面操作方式。
 
 ## 核心功能
 
@@ -16,7 +16,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **批量Word转PDF**: 将多个Word文档批量转换为PDF格式
 
 ### 操作方式
-- **CLI命令行**: 支持批量处理和自动化脚本
 - **Web界面**: 提供直观的图形界面操作
 
 ## 项目结构
@@ -68,18 +67,6 @@ pip install -r requirements.txt
 ## 开发流程
 
 ### 运行应用
-
-#### 命令行界面
-```bash
-# 准备盖章页
-python -m GaiZhangYe.core.entrypoints.cli_start --prepare
-
-# 盖章页覆盖
-python -m GaiZhangYe.core.entrypoints.cli_start --cover
-
-# 批量Word转PDF
-python -m GaiZhangYe.core.entrypoints.cli_start --convert
-```
 
 #### Web界面
 ```bash
