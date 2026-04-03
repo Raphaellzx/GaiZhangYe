@@ -13,7 +13,7 @@ from GaiZhangYe.utils.config import get_settings
 
 def kill_old_processes():
     """清除旧的Python进程和占用指定端口的进程"""
-    print("[1/3] 正在检查旧的Python进程...")
+    print("[1/3] 清除旧的Python进程和占用指定端口的进程...")
 
     # 从配置文件读取要检查的端口
     settings = get_settings()
@@ -22,8 +22,6 @@ def kill_old_processes():
     try:
         # Windows系统
         if sys.platform == "win32":
-            # 只杀死占用端口的进程，不再杀死所有Python进程，避免杀死自身
-            print("✓ 跳过杀死所有Python进程，改为只检查占用端口的进程")
 
             # 再检查并杀死占用指定端口的进程
             for port in ports_to_check:
@@ -63,10 +61,6 @@ def start_service():
         current_file = os.path.abspath(__file__)
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
     sys.path.insert(0, project_root)
-
-    # 打印调试信息
-    print(f"项目根目录: {project_root}")
-    print(f"Python路径: {sys.path}")
 
     try:
         from GaiZhangYe.web.app import app
